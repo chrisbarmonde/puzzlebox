@@ -1,6 +1,6 @@
-define('scene', ['babylon', 'player', 'underscore'], function(Babylon, Player, _) {
-    var BLOCK_SIZE = 10,
-        BLOCK_COLORS = {
+define('scene', ['babylon', 'config', 'player', 'underscore'], function(Babylon, config, Player, _) {
+    var BLOCK_COLORS = {
+            BLACK:  new Babylon.Color3(0, 0, 0),
             RED:    new Babylon.Color3(1, 0, 0),
             GREEN:  new Babylon.Color3(0, 1, 0),
             YELLOW: new Babylon.Color3(1, 1, 0),
@@ -88,34 +88,52 @@ define('scene', ['babylon', 'player', 'underscore'], function(Babylon, Player, _
                 throw "Multiple players defined";
             }
 
-            this._player = new Player(this._scene);
-            this._player.setPosition(this._getPosition(position));
+            var player = new Player(this._scene);
+
+            position = this._getPosition(position);
+            position.y -= config.GRAVITY;
+            player.setPosition(position);
+
+            this._player = player;
+        },
+
+        _addBlock: function(color, position, movable) {
+            var block = Babylon.Mesh.CreateBox('Box' + position.x + position.y, config.BLOCK_SIZE, this._scene);
+            block.material = new Babylon.StandardMaterial('', this._scene);
+            block.material.emissiveColor = color;
+            block.material.backFaceCulling = false;
+            block.position = this._getPosition(position);
+            block.checkCollisions = movable;//true;
+            block.movable = movable;
+
+            var plane = Babylon.Mesh.CreatePlane('Plane' + position.x + position.y, config.BLOCK_SIZE, this._scene);
+            plane.parent = block;
+            plane.position = new Babylon.Vector3(0, (config.BLOCK_SIZE / 2) + 0.1, 0);
+            plane.material = new Babylon.StandardMaterial('', this._scene);
+            plane.material.diffuseColor = plane.material.emissiveColor = new Babylon.Color3(1, 0, 0);
+            plane.rotation = new Babylon.Vector3(Math.PI / 2, 0, 0);
+            plane.checkCollisions = true;
+            plane.plane = true;
+
+            this._grid[position.x][position.y] = block;
+            return block;
         },
 
         addColorBlock: function(color, position) {
-            var block = Babylon.Mesh.CreateBox('', BLOCK_SIZE, this._scene);
-            block.material = new Babylon.StandardMaterial('', this._scene);
-            block.material.emissiveColor = BLOCK_COLORS[color];
-            block.position = this._getPosition(position);
-            block.checkCollisions = true;
-            block.movable = true;
-
-            this._grid[position.x][position.y] = block;
+            this._addBlock(BLOCK_COLORS[color], position, true);
         },
 
         addPlatformBlock: function(position) {
-            var block = Babylon.Mesh.CreateBox('', BLOCK_SIZE, this._scene);
-            block.material = new Babylon.StandardMaterial('', this._scene);
-            //block.material.emissiveColor = new Babylon.Color3(0, 0, 0);
-            block.position = this._getPosition(position);
-            block.checkCollisions = true;
-            block.movable = false;
-
-            this._grid[position.x][position.y] = block;
+            var block = this._addBlock(BLOCK_COLORS.BLACK, position, false);
+            block.material.diffuseColor = BLOCK_COLORS.BLACK;
         },
 
         _getPosition: function(position) {
-            return new Babylon.Vector3(position.x * BLOCK_SIZE, position.y * BLOCK_SIZE, 0);
+            return new Babylon.Vector3(
+                position.x * config.BLOCK_SIZE,
+                position.y * config.BLOCK_SIZE,
+                0
+            );
         }
     });
     _(Scene).extend({
