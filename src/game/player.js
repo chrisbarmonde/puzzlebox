@@ -1,6 +1,7 @@
-define('player', ['babylon', 'config', 'underscore', 'events'], function(Babylon, config, _, events) {
+define('game/player',
+    ['game/config', 'util/events', 'babylon', 'underscore'],
+    function(config, events, Babylon, _) {
 
-    var globalId = 0;
     var PlayerCamera = Babylon.FreeCamera.extend({
         DIRECTIONS: {
             UP: 1,
@@ -19,22 +20,21 @@ define('player', ['babylon', 'config', 'underscore', 'events'], function(Babylon
                 return;
             }
 
-            var speed = this._computeLocalCameraSpeed(),
-                jump_speed = config.JUMP_SPEED;
+            //var speed = this._computeLocalCameraSpeed();
 
             var x = 0, y = 0, z = 0;
             if (direction & this.DIRECTIONS.RIGHT) {
-                x = speed;
+                x = config.PLAYER_SPEED;
             } else if (direction & this.DIRECTIONS.LEFT) {
-                x = -speed;
+                x = -config.PLAYER_SPEED;
             }
             if (direction & this.DIRECTIONS.UP) {
-                y = jump_speed;
+                y = config.JUMP_SPEED;
             } else if (direction & this.DIRECTIONS.DOWN) {
-                y = -jump_speed;
+                y = -config.JUMP_SPEED;
             }
 
-            this._localDirection.copyFromFloats(x, y, 0);
+            this._localDirection.copyFromFloats(x, y, z);
 
             this.getViewMatrix().invertToRef(this._cameraTransformMatrix);
             Babylon.Vector3.TransformNormalToRef(
@@ -46,8 +46,6 @@ define('player', ['babylon', 'config', 'underscore', 'events'], function(Babylon
         },
 
         manualUpdate: function(direction) {
-
-
             this.manualInputs(direction);
 
             var needToMove = (this._needMoveForGravity
@@ -61,23 +59,26 @@ define('player', ['babylon', 'config', 'underscore', 'events'], function(Babylon
                     this._collideWithWorld(this.cameraDirection);
 
                     if (this.applyGravity) {
-
                         var oldPosition = this.position;
                         this._collideWithWorld(this._scene.gravity);
-                        this._needMoveForGravity = (Babylon.Vector3.DistanceSquared(oldPosition, this.position) != 0);
+                        this._needMoveForGravity =
+                            (Babylon.Vector3.DistanceSquared(oldPosition, this.position) !== 0);
                     }
                 } else {
                     this.position.addInPlace(this.cameraDirection);
                 }
 
-                if (Math.abs(this.cameraDirection.x) < Babylon.Engine.epsilon)
+                if (Math.abs(this.cameraDirection.x) < Babylon.Engine.epsilon) {
                     this.cameraDirection.x = 0;
+                }
 
-                if (Math.abs(this.cameraDirection.y) < Babylon.Engine.epsilon)
+                if (Math.abs(this.cameraDirection.y) < Babylon.Engine.epsilon) {
                     this.cameraDirection.y = 0;
+                }
 
-                if (Math.abs(this.cameraDirection.z) < Babylon.Engine.epsilon)
+                if (Math.abs(this.cameraDirection.z) < Babylon.Engine.epsilon) {
                     this.cameraDirection.z = 0;
+                }
 
                 this.cameraDirection.scaleInPlace(this.inertia);
             }
@@ -87,13 +88,22 @@ define('player', ['babylon', 'config', 'underscore', 'events'], function(Babylon
             this.position.subtractFromFloatsToRef(0, this.ellipsoid.y, 0, this._oldPosition);
             this._collider.radius = this.ellipsoid;
 
-            this._scene._getNewPosition(this._oldPosition, velocity, this._collider, 3, this._newPosition);
+            this._scene._getNewPosition(
+                this._oldPosition,
+                velocity,
+                this._collider,
+                3,
+                this._newPosition
+            );
             this._newPosition.subtractToRef(this._oldPosition, this._diffPosition);
 
             if (this._diffPosition.length() > Babylon.Engine.collisionsEpsilon) {
                 this.position.addInPlace(this._diffPosition);
-                if (this.onCollide && this._collider.collisionFound) {
-                    this.onCollide(this._collider.collidedMesh);
+                if (this.onCollide) {
+                    var mesh = (this._collider.collisionFound)
+                        ? this._collider.collidedMesh
+                        : null;
+                    this.onCollide(mesh);
                 }
             }
         }
@@ -103,7 +113,7 @@ define('player', ['babylon', 'config', 'underscore', 'events'], function(Babylon
     var Player = function(scene) {
         this._scene = scene;
 
-        this._body = Babylon.Mesh.CreateBox('PlayerBody', 10, scene);
+        this._body = Babylon.Mesh.CreateBox('PlayerBody', 10, scene._scene);
         this._body.scaling = new Babylon.Vector3(0.5, 0.8, 0.2);
     };
     _(Player.prototype).extend({
@@ -115,7 +125,9 @@ define('player', ['babylon', 'config', 'underscore', 'events'], function(Babylon
                 direction = 0,
                 jumping = false,
                 falling = false,
-                jumpStart = 0;
+                jumpStart = 0,
+                grabbing = false,
+                grabbedBox = null;
 
             var startJump = function() {
                 jumping = true;
@@ -159,10 +171,18 @@ define('player', ['babylon', 'config', 'underscore', 'events'], function(Babylon
                     case events.KEYS.W:
                         moveUp = false;
                         break;
+
+                    case events.KEYS.SPACE:
+                        if (grabbedBox) {
+                            grabbing = !grabbing;
+                            console.log("BOX", grabbing, grabbedBox);
+                        }
+                        event.preventDefault();
+                        break;
                 }
             });
 
-            this._scene.registerBeforeRender(function() {
+            this._scene._scene.registerBeforeRender(function() {
                 var jumpDirection = 0;
                 if (jumping) {
                     if (!falling && self._camera.position.y - jumpStart < config.JUMP_HEIGHT) {
@@ -173,14 +193,22 @@ define('player', ['babylon', 'config', 'underscore', 'events'], function(Babylon
                 }
 
                 self._camera.manualUpdate(direction | jumpDirection);
+//
+//                if (grabbing) {
+//                    if (direction == self._camera.DIRECTIONS.RIGHT) {
+//
+//                    } else if (direction == self._camera.DIRECTIONS.LEFT) {
+//
+//                    }
+//                }
 
                 // Make the player follow the camera
                 self._body.position.x = self._camera.position.x;
                 self._body.position.y = self._camera.position.y;
 
-                self._scene.activeCamera.position.x = self._body.position.x;
-                self._scene.activeCamera.position.y = self._body.position.y + 50;
-                self._scene.activeCamera.setTarget(self._body.position);
+                self._scene._scene.activeCamera.position.x = self._body.position.x;
+                self._scene._scene.activeCamera.position.y = self._body.position.y + 50;
+                self._scene._scene.activeCamera.setTarget(self._body.position);
 
                 if (self._camera.position.y < -50) {
                     self._camera.position = self.originalPosition.clone();
@@ -189,13 +217,20 @@ define('player', ['babylon', 'config', 'underscore', 'events'], function(Babylon
             });
 
             this._camera.onCollide = function(mesh) {
-                if (mesh && mesh.plane) {
-                    jumping = falling = false;
-                    if (moveUp) {
-                        startJump();
+                if (mesh) {
+                    if (mesh.plane) {
+                        jumping = falling = false;
+                        if (moveUp) {
+                            startJump();
+                        }
+                    } else if (mesh.movable) {
+                        grabbedBox = mesh;
                     }
+                } else {
+                    //console.log("no more collision");
+                    grabbedBox = null;
                 }
-            }
+            };
         },
 
         getMesh: function() {
@@ -206,8 +241,10 @@ define('player', ['babylon', 'config', 'underscore', 'events'], function(Babylon
             this.originalPosition = vector.clone();
             this._body.position = vector.clone();
 
-            this._camera = new PlayerCamera('BodyCam', this._body.position, this._scene);
-            this._camera.ellipsoid = this._body.getBoundingInfo().boundingBox.maximum.clone().divide(new Babylon.Vector3(2, 2, 2));
+            var boundingBox = this._body.getBoundingInfo().boundingBox.maximum.clone();
+
+            this._camera = new PlayerCamera('BodyCam', this._body.position, this._scene._scene);
+            this._camera.ellipsoid = boundingBox.divide(new Babylon.Vector3(2, 2, 2));
             this._camera.checkCollisions = true;
             this._camera.applyGravity = true;
             this._camera.keysUp = this._camera.keysDown = [];

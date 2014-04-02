@@ -1,4 +1,4 @@
-define('events', function() {
+define('util/events', function() {
     var KEYS = {
         CANCEL: 3,
         HELP: 6,

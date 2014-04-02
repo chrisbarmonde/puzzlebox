@@ -1,4 +1,6 @@
-define('game', ['babylon', 'config', 'underscore', 'events'], function(Babylon, config, _, events) {
+define('game',
+    ['game/config', 'babylon', 'underscore'],
+    function(config, Babylon, _) {
     var PuzzleBox = function(canvas) {
         var engine = new Babylon.Engine(canvas, true);
 
@@ -15,29 +17,44 @@ define('game', ['babylon', 'config', 'underscore', 'events'], function(Babylon, 
         },
 
         createScene: function(onCreate) {
-            var scene = new Babylon.Scene(this.getEngine()),
-                light = new Babylon.PointLight('Light', new Babylon.Vector3(0, 0, -75.0), scene),
-                //camera = new Babylon.ArcRotateCamera('Camera', 0, 0.8, 100, new Babylon.Vector3(150, 50, -50.0), scene);
-                camera = new Babylon.FreeCamera('Camera', new Babylon.Vector3(0, 0, -200.0), scene);
-            camera.keysDown = camera.keysUp = camera.keysRight = camera.keysLeft = [];
-            camera.angularSensibility = 10000000;
+            var scene = new Babylon.Scene(this.getEngine());
+            this._createCamera(scene);
+            this._createLight(scene);
 
             scene.gravity = new Babylon.Vector3(0, config.GRAVITY, 0);
             scene.collisionsEnabled = true;
+            scene.activeCamera.attachControl(this._canvas, true);
 
             onCreate(scene);
 
-            scene.activeCamera.attachControl(this._canvas, true);
             this.getEngine().runRenderLoop(function() {
                 scene.render();
             });
 
             return scene;
+        },
+
+        _createCamera: function(scene) {
+            /*var camera = new Babylon.ArcRotateCamera(
+            'Camera', 0, 0.8, 100, new Babylon.Vector3(150, 50, -50.0), scene);
+             */
+            var camera = new Babylon.FreeCamera(
+                    'Camera',
+                    new Babylon.Vector3(0, 0, -200.0),
+                    scene
+                );
+            camera.keysDown = camera.keysUp = camera.keysRight = camera.keysLeft = [];
+            camera.angularSensibility = 10000000;
+            return camera;
+        },
+
+        _createLight: function(scene) {
+            return new Babylon.PointLight('Light', new Babylon.Vector3(0, 0, -75.0), scene);
         }
     });
 
     return {
-        create: function(canvas, scene) {
+        create: function(canvas) {
             if (!Babylon.Engine.isSupported()) {
                 return false;
             }

@@ -1,0 +1,2 @@
+Bugs
+* Can jump if falling action not initiated from a jump (Need to check gravity calcs for downward motion)

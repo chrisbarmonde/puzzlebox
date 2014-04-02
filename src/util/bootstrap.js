@@ -1,4 +1,4 @@
-define('bootstrap', function() {
+define('util/bootstrap', function() {
     /**
      * From backbone.js. Enables us to extend our own basic classes.
      */

@@ -22,19 +22,13 @@
 
     <script src="//cdnjs.cloudflare.com/ajax/libs/require.js/2.1.11/require.min.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.6.0/underscore-min.js"></script>
-
-    <script>
-        define('babylon', function() {
-            return BABYLON;
-        });
-    </script>
 </head>
 <body>
     <canvas id="game" width="1280" height="720"></canvas>
 
     <script>
-        require(['bootstrap'], function() {
-            require(['game', 'scenes/level1'], function(game, level1) {
+        require(['util/bootstrap'], function() {
+            require(['game', 'levels/1'], function(game, level1) {
                 var puzzleBox = game.create(document.getElementById('game'));
                 level1(puzzleBox);
             });
