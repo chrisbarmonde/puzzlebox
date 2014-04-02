@@ -39,7 +39,7 @@ define('levels/1',
 
     return function(engine) {
         engine.createScene(function(scene) {
-            new Level1(scene);
+            (new Level1(scene)).setupGrid();
         });
     };
 });

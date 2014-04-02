@@ -1,39 +1,36 @@
 define('spec/game',
-    ['game', 'game/config', 'babylon', 'jasmine'],
-    function(game, config, Babylon, jasmine) {
-    beforeEach(function() {
-        this.canvas = document.createElement('canvas');
-        this.canvas.width = 1024;
-        this.canvas.height = 768;
-        document.body.appendChild(this.canvas);
-    });
-
-    afterEach(function() {
-        document.body.removeChild(this.canvas);
-    });
+    ['game', 'game/config', 'spec/util', 'babylon', 'jasmine'],
+    function(game, config, util, Babylon, jasmine) {
 
     describe('Game', function() {
+        util.createCanvas();
+
+        beforeEach(function() {
+            this.puzzlebox = game.create(this.canvas);
+        });
+
+        afterEach(function() {
+            this.puzzlebox.getEngine().dispose();
+        });
+
         it('fails if not supported', function() {
             spyOn(Babylon.Engine, 'isSupported').and.returnValue(false);
             expect(game.create()).toBe(false);
         });
 
         it('creates an engine', function() {
-            var puzzlebox = game.create(this.canvas);
-            expect(puzzlebox.getEngine()).toEqual(jasmine.any(Babylon.Engine));
+            expect(this.puzzlebox.getEngine()).toEqual(jasmine.any(Babylon.Engine));
         });
 
         it('resizes when the window resizes', function() {
-            var puzzlebox = game.create(this.canvas);
-            spyOn(puzzlebox.getEngine(), 'resize');
+            spyOn(this.puzzlebox.getEngine(), 'resize');
 
             window.dispatchEvent(new window.Event('resize'));
-            expect(puzzlebox.getEngine().resize).toHaveBeenCalled();
+            expect(this.puzzlebox.getEngine().resize).toHaveBeenCalled();
         });
 
         describe('Game.createScene', function() {
             beforeEach(function() {
-                this.puzzlebox = game.create(this.canvas);
                 this.callback = jasmine.createSpy('callback');
             });
 

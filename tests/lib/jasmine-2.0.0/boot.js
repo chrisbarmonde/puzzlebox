@@ -169,15 +169,20 @@
     htmlReporter.initialize();
 
     define('jasmine', function() {
-        return window.jasmine;
+      return window.jasmine;
     });
 
-    require(
-      ['spec/game'],
-      function() {
-        env.execute();
-      }
-    );
+    require(['util/bootstrap'], function() {
+      require(
+        [
+          'spec/game',
+          'spec/game/level'
+        ],
+        function() {
+          env.execute();
+        }
+      );
+    });
   };
 
   /**
