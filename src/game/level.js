@@ -22,12 +22,13 @@ define('game/level',
     var BLOCK_TYPES = {
         PLAYER: 0,
         PLATFORM: 1,
-        START: 2,
-        FINISH: 3,
-        RED: 4,
-        GREEN: 5,
-        YELLOW: 6,
-        BLUE: 7
+        PLATFORM_THIN: 2,
+        START: 3,
+        FINISH: 4,
+        RED: 5,
+        GREEN: 6,
+        YELLOW: 7,
+        BLUE: 8
     };
 
     /**
@@ -111,6 +112,10 @@ define('game/level',
 
                         case BLOCK_TYPES.PLATFORM:
                             self.addPlatformBlock(new Babylon.Vector2(x, y));
+                            break;
+
+                        case BLOCK_TYPES.PLATFORM_THIN:
+                            self.addThinPlatformBlock(new Babylon.Vector2(x, y));
                             break;
 
                         case BLOCK_TYPES.RED:
@@ -198,17 +203,6 @@ define('game/level',
             block.movable = movable;
             block._type = blockType;
 
-            // We put planes on top of our blocks so we can have better hit detection
-            // and so that gravity-based stuff works properly.
-            var plane = Babylon.Mesh.CreatePlane('Plane' + name, config.BLOCK_SIZE, this._scene);
-            plane.parent = block;
-            plane.position = new Babylon.Vector3(0, (config.BLOCK_SIZE / 2) + 0.1, 0);
-            plane.material = new Babylon.StandardMaterial('', this._scene);
-            plane.material.alpha = 0;
-            plane.rotation = new Babylon.Vector3(Math.PI / 2, 0, 0);
-            plane.checkCollisions = true;
-            plane.plane = true;
-
             this._grid[position.x][position.y] = block;
             return block;
         },
@@ -219,10 +213,11 @@ define('game/level',
          *
          * @param {string} blockType
          * @param {Babylon.Vector2} position
+         * @returns {Babylon.Mesh}
          */
         addColorBlock: function(blockType, position) {
             var color = BLOCK_TYPES_INVERTED[blockType];
-            this._addBlock(blockType, BLOCK_COLORS[color], position, true);
+            return this._addBlock(blockType, BLOCK_COLORS[color], position, true);
         },
 
         /**
@@ -230,6 +225,7 @@ define('game/level',
          * cannot be moved.
          *
          * @param {Babylon.Vector2} position
+         * @returns {Babylon.Mesh}
          */
         addPlatformBlock: function(position) {
             var block = this._addBlock(
@@ -239,6 +235,22 @@ define('game/level',
                 false
             );
             block.material.diffuseColor = BLOCK_COLORS.BLACK;
+            return block;
+        },
+
+        /**
+         * Adds a thin platform block. These are a quarter the size of a normal platform,
+         * though their are positioned vertically at the top of a normal block.
+         *
+         * @param {Babylon.Vector2} position
+         * @returns {Babylon.Mesh}
+         */
+        addThinPlatformBlock: function(position) {
+            var block = this.addPlatformBlock(position);
+            block._type = Level.BLOCK_TYPES.PLATFORM_THIN;
+            block.scaling = new Babylon.Vector3(1, 0.25, 1);
+            block.position.y += config.BLOCK_SIZE / 4 + config.BLOCK_SIZE / 8;
+            return block;
         },
 
         /**
@@ -267,6 +279,9 @@ define('game/level',
         },
         isPlatformBlock: function(block) {
             return !!block && block._type === BLOCK_TYPES.PLATFORM;
+        },
+        isThinPlatformBlock: function(block) {
+            return !!block && block._type === BLOCK_TYPES.PLATFORM_THIN;
         }
     });
 

@@ -2,14 +2,14 @@ define('game/player',
     ['game/config', 'util/events', 'babylon', 'underscore'],
     function(config, events, Babylon, _) {
 
-    var PlayerCamera = Babylon.FreeCamera.extend({
-        DIRECTIONS: {
-            UP: 1,
-            RIGHT: 2,
-            DOWN: 4,
-            LEFT: 8
-        },
+    var DIRECTIONS = {
+        UP: 1,
+        RIGHT: 2,
+        DOWN: 4,
+        LEFT: 8
+    };
 
+    var PlayerCamera = Babylon.FreeCamera.extend({
         manualInputs: function(direction) {
             if (!this._localDirection) {
                 this._localDirection = Babylon.Vector3.Zero();
@@ -23,15 +23,15 @@ define('game/player',
             //var speed = this._computeLocalCameraSpeed();
 
             var x = 0, y = 0, z = 0;
-            if (direction & this.DIRECTIONS.RIGHT) {
-                x = config.PLAYER_SPEED;
-            } else if (direction & this.DIRECTIONS.LEFT) {
-                x = -config.PLAYER_SPEED;
+            if (direction & DIRECTIONS.RIGHT) {
+                x = config.PLAYER.MOVEMENT.WALK_SPEED;
+            } else if (direction & DIRECTIONS.LEFT) {
+                x = -config.PLAYER.MOVEMENT.WALK_SPEED;
             }
-            if (direction & this.DIRECTIONS.UP) {
-                y = config.JUMP_SPEED;
-            } else if (direction & this.DIRECTIONS.DOWN) {
-                y = -config.JUMP_SPEED;
+            if (direction & DIRECTIONS.UP) {
+                y = config.PLAYER.MOVEMENT.JUMP.SPEED;
+            } else if (direction & DIRECTIONS.DOWN) {
+                y = -config.PLAYER.MOVEMENT.JUMP.SPEED;
             }
 
             this._localDirection.copyFromFloats(x, y, z);
@@ -85,7 +85,7 @@ define('game/player',
         },
 
         _collideWithWorld: function (velocity) {
-            this.position.subtractFromFloatsToRef(0, this.ellipsoid.y, 0, this._oldPosition);
+            this._oldPosition = this.position.clone();
             this._collider.radius = this.ellipsoid;
 
             this._scene._getNewPosition(
@@ -100,21 +100,56 @@ define('game/player',
             if (this._diffPosition.length() > Babylon.Engine.collisionsEpsilon) {
                 this.position.addInPlace(this._diffPosition);
                 if (this.onCollide) {
-                    var mesh = (this._collider.collisionFound)
-                        ? this._collider.collidedMesh
-                        : null;
-                    this.onCollide(mesh);
+                    if (this._collider.collisionFound) {
+                        var mesh = (this._collider.collisionFound)
+                            ? this._collider.collidedMesh
+                            : null;
+
+                        if (config.DEBUG) {
+                            if (this.hMesh) {
+                                this.hMesh.material.emissiveColor = this.hMesh.material.oColor;
+                            }
+
+                            this.hMesh = mesh;
+                            this.hMesh.material.oColor = this.hMesh.material.emissiveColor;
+                            this.hMesh.material.emissiveColor = new Babylon.Color4(1, 1, 0, 0.5);
+                        }
+
+                        var direction = 0;
+                        if (this._collider.normalizedVelocity.x < 0) {
+                            direction = DIRECTIONS.LEFT;
+                        } else if (this._collider.normalizedVelocity.x > 0) {
+                            direction = DIRECTIONS.RIGHT;
+                        } else if (this._collider.normalizedVelocity.y < 0) {
+                            direction = DIRECTIONS.DOWN;
+                        } else if (this._collider.normalizedVelocity.y > 0) {
+                            direction = DIRECTIONS.UP;
+                        }
+
+                        this.onCollide(mesh, direction);
+                    }
                 }
             }
         }
     });
 
 
-    var Player = function(scene) {
-        this._scene = scene;
+    var Player = function(level) {
+        this._level = level;
 
-        this._body = Babylon.Mesh.CreateBox('PlayerBody', 10, scene._scene);
-        this._body.scaling = new Babylon.Vector3(0.5, 0.8, 0.2);
+        this._body = Babylon.Mesh.CreateBox('PlayerBody', 1, level._scene);
+        this._body.scaling = new Babylon.Vector3(
+            config.PLAYER.SIZE.WIDTH,
+            config.PLAYER.SIZE.HEIGHT,
+            config.PLAYER.SIZE.LENGTH
+        );
+        this._body.material = new Babylon.StandardMaterial('PlayerMateria', level._scene);
+        if (config.DEBUG) {
+            this._body.material.alpha = 0.5;
+        }
+
+        this._facingDirection = DIRECTIONS.RIGHT;
+        this._gridPosition = null;
     };
     _(Player.prototype).extend({
         setupKeyboard: function() {
@@ -139,12 +174,12 @@ define('game/player',
                 switch(event.keyCode) {
                     case events.KEYS.A:
                         moveLeft = true;
-                        direction = self._camera.DIRECTIONS.LEFT;
+                        direction = DIRECTIONS.LEFT;
                         break;
 
                     case events.KEYS.D:
                         moveRight = true;
-                        direction = self._camera.DIRECTIONS.RIGHT;
+                        direction = DIRECTIONS.RIGHT;
                         break;
 
                     case events.KEYS.W:
@@ -160,12 +195,12 @@ define('game/player',
                 switch(event.keyCode) {
                     case events.KEYS.A:
                         moveLeft = false;
-                        direction = (moveRight) ? self._camera.DIRECTIONS.RIGHT : 0;
+                        direction = (moveRight) ? DIRECTIONS.RIGHT : 0;
                         break;
 
                     case events.KEYS.D:
                         moveRight = false;
-                        direction = (moveLeft) ? self._camera.DIRECTIONS.LEFT : 0;
+                        direction = (moveLeft) ? DIRECTIONS.LEFT : 0;
                         break;
 
                     case events.KEYS.W:
@@ -173,42 +208,57 @@ define('game/player',
                         break;
 
                     case events.KEYS.SPACE:
-                        if (grabbedBox) {
-                            grabbing = !grabbing;
-                            console.log("BOX", grabbing, grabbedBox);
-                        }
+
                         event.preventDefault();
                         break;
                 }
             });
 
-            this._scene._scene.registerBeforeRender(function() {
+            this._level._scene.registerBeforeRender(function() {
                 var jumpDirection = 0;
                 if (jumping) {
-                    if (!falling && self._camera.position.y - jumpStart < config.JUMP_HEIGHT) {
-                        jumpDirection = self._camera.DIRECTIONS.UP;
+                    var jumpDiff = self._camera.position.y - jumpStart;
+                    if (!falling && jumpDiff < config.PLAYER.MOVEMENT.JUMP.HEIGHT) {
+                        jumpDirection = DIRECTIONS.UP;
                     } else {
                         falling = true;
                     }
                 }
 
+                if (direction) {
+                    self._facingDirection = direction;
+                }
+
                 self._camera.manualUpdate(direction | jumpDirection);
-//
-//                if (grabbing) {
-//                    if (direction == self._camera.DIRECTIONS.RIGHT) {
-//
-//                    } else if (direction == self._camera.DIRECTIONS.LEFT) {
-//
-//                    }
-//                }
 
                 // Make the player follow the camera
                 self._body.position.x = self._camera.position.x;
                 self._body.position.y = self._camera.position.y;
 
-                self._scene._scene.activeCamera.position.x = self._body.position.x;
-                self._scene._scene.activeCamera.position.y = self._body.position.y + 50;
-                self._scene._scene.activeCamera.setTarget(self._body.position);
+                if (config.DEBUG) {
+                    if (!self.ellipsoid) {
+                        self.ellipsoid = Babylon.Mesh.CreateSphere(
+                            'Ellip', 20, 1, self._level._scene);
+                        self.ellipsoid.scaling = new Babylon.Vector3(
+                            config.PLAYER.SIZE.WIDTH,
+                            config.PLAYER.SIZE.HEIGHT,
+                            config.PLAYER.SIZE.LENGTH
+                        );
+
+                        self.ellipsoid.material = new Babylon.StandardMaterial(
+                            '', self._level._scene);
+                        self.ellipsoid.material.diffuseColor =
+                            self.ellipsoid.material.specularColor =
+                            self.ellipsoid.material.emissiveColor =
+                                new Babylon.Color4(1, 1, 0, 0.5);
+                    }
+                    self.ellipsoid.position.x = self._camera.position.x;
+                    self.ellipsoid.position.y = self._camera.position.y;
+                }
+
+                self._level._scene.activeCamera.position.x = self._body.position.x;
+                self._level._scene.activeCamera.position.y = self._body.position.y;
+                self._level._scene.activeCamera.setTarget(self._body.position);
 
                 if (self._camera.position.y < -50) {
                     self._camera.position = self.originalPosition.clone();
@@ -216,19 +266,16 @@ define('game/player',
                 }
             });
 
-            this._camera.onCollide = function(mesh) {
+            this._camera.onCollide = function(mesh, direction) {
                 if (mesh) {
-                    if (mesh.plane) {
+                    if (jumping && direction === DIRECTIONS.UP) {
+                        falling = true;
+                    } else if (falling) {
                         jumping = falling = false;
                         if (moveUp) {
                             startJump();
                         }
-                    } else if (mesh.movable) {
-                        grabbedBox = mesh;
                     }
-                } else {
-                    //console.log("no more collision");
-                    grabbedBox = null;
                 }
             };
         },
@@ -241,10 +288,12 @@ define('game/player',
             this.originalPosition = vector.clone();
             this._body.position = vector.clone();
 
-            var boundingBox = this._body.getBoundingInfo().boundingBox.maximum.clone();
-
-            this._camera = new PlayerCamera('BodyCam', this._body.position, this._scene._scene);
-            this._camera.ellipsoid = boundingBox.divide(new Babylon.Vector3(2, 2, 2));
+            this._camera = new PlayerCamera('BodyCam', this._body.position, this._level._scene);
+            this._camera.ellipsoid = new Babylon.Vector3(
+                config.PLAYER.SIZE.WIDTH / 2,
+                config.PLAYER.SIZE.HEIGHT / 2,
+                config.PLAYER.SIZE.LENGTH / 2
+            );
             this._camera.checkCollisions = true;
             this._camera.applyGravity = true;
             this._camera.keysUp = this._camera.keysDown = [];
@@ -252,6 +301,14 @@ define('game/player',
             this._camera.keysRight = [events.KEYS.D];
 
             this.setupKeyboard();
+        },
+
+        getGridPosition: function() {
+            return new Babylon.Vector2(
+                // @TODO move this calc to Level
+                Math.round(this._camera.position.x / config.BLOCK_SIZE),
+                Math.round(this._camera.position.y / config.BLOCK_SIZE)
+            );
         }
     });
 

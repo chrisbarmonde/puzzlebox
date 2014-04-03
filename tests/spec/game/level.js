@@ -99,7 +99,7 @@ define('spec/game/level',
                 },
                 2: {
                     3: Level.BLOCK_TYPES.PLATFORM,
-                    5: Level.BLOCK_TYPES.PLATFORM,
+                    5: Level.BLOCK_TYPES.PLATFORM_THIN,
                     7: Level.BLOCK_TYPES.PLATFORM
                 },
                 3: {
@@ -162,7 +162,34 @@ define('spec/game/level',
                     });
                 });
 
-                expect(count).toBe(3);
+                expect(count).toBe(2);
+            });
+
+            it('makes thin platform blocks', function() {
+                var count = 0;
+                _(this.level._grid).each(function(row) {
+                    _(row).each(function(block) {
+                        if (Level.isThinPlatformBlock(block)) {
+                            ++count;
+                            expect(block.movable).toBe(false);
+                            expect(block.material.backFaceCulling).toBe(false);
+                            expect(block.checkCollisions).toBe(true);
+
+                            var color = jasmine.objectContaining({
+                                r: 0,
+                                g: 0,
+                                b: 0
+                            });
+                            expect(block.material.emissiveColor).toEqual(color);
+                            expect(block.material.diffuseColor).toEqual(color);
+                            expect(block.scaling).toEqual(jasmine.objectContaining({
+                                y: 0.25
+                            }));
+                        }
+                    });
+                });
+
+                expect(count).toBe(1);
             });
         });
     });

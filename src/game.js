@@ -40,7 +40,7 @@ define('game',
              */
             var camera = new Babylon.FreeCamera(
                     'Camera',
-                    new Babylon.Vector3(0, 0, -200.0),
+                    new Babylon.Vector3(0, 0, -100.0),
                     scene
                 );
             camera.keysDown = camera.keysUp = camera.keysRight = camera.keysLeft = [];
