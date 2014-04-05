@@ -289,6 +289,19 @@ define('game/level',
                 position.y * config.BLOCK_SIZE,
                 0
             );
+        },
+
+        /**
+         * Return the (x,y) coordinates of the player on the grid
+         *
+         * @returns {BABYLON.Vector2}
+         */
+        getPlayerPosition: function() {
+            var playerPosition = this.getPlayer().getPosition();
+            return new Babylon.Vector2(
+                Math.floor(playerPosition.x / config.BLOCK_SIZE),
+                Math.floor(playerPosition.y / config.BLOCK_SIZE)
+            );
         }
     });
     _(Level).extend({

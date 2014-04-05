@@ -1,138 +1,8 @@
 define('game/player',
-    ['game/config', 'util/events', 'babylon', 'underscore'],
-    function(config, events, Babylon, _) {
-
-    var DIRECTIONS = {
-        UP: 1,
-        RIGHT: 2,
-        DOWN: 4,
-        LEFT: 8
-    };
-
-    var PlayerCamera = Babylon.FreeCamera.extend({
-        manualInputs: function(direction) {
-            if (!this._localDirection) {
-                this._localDirection = Babylon.Vector3.Zero();
-                this._transformedDirection = Babylon.Vector3.Zero();
-            }
-
-            if (direction === 0) {
-                return;
-            }
-
-            //var speed = this._computeLocalCameraSpeed();
-
-            var x = 0, y = 0, z = 0;
-            if (direction & DIRECTIONS.RIGHT) {
-                x = config.PLAYER.MOVEMENT.WALK_SPEED;
-            } else if (direction & DIRECTIONS.LEFT) {
-                x = -config.PLAYER.MOVEMENT.WALK_SPEED;
-            }
-            if (direction & DIRECTIONS.UP) {
-                y = config.PLAYER.MOVEMENT.JUMP.SPEED;
-            } else if (direction & DIRECTIONS.DOWN) {
-                y = -config.PLAYER.MOVEMENT.JUMP.SPEED;
-            }
-
-            this._localDirection.copyFromFloats(x, y, z);
-
-            this.getViewMatrix().invertToRef(this._cameraTransformMatrix);
-            Babylon.Vector3.TransformNormalToRef(
-                this._localDirection,
-                this._cameraTransformMatrix,
-                this._transformedDirection
-            );
-            this.cameraDirection.addInPlace(this._transformedDirection);
-        },
-
-        manualUpdate: function(direction) {
-            this.manualInputs(direction);
-
-            var needToMove = (this._needMoveForGravity
-                || Math.abs(this.cameraDirection.x) > 0
-                || Math.abs(this.cameraDirection.y) > 0
-                || Math.abs(this.cameraDirection.z) > 0);
-
-            // Move
-            if (needToMove) {
-                if (this.checkCollisions && this._scene.collisionsEnabled) {
-                    this._collideWithWorld(this.cameraDirection);
-
-                    if (this.applyGravity) {
-                        var oldPosition = this.position;
-                        this._collideWithWorld(this._scene.gravity);
-                        this._needMoveForGravity =
-                            (Babylon.Vector3.DistanceSquared(oldPosition, this.position) !== 0);
-                    }
-                } else {
-                    this.position.addInPlace(this.cameraDirection);
-                }
-
-                if (Math.abs(this.cameraDirection.x) < Babylon.Engine.epsilon) {
-                    this.cameraDirection.x = 0;
-                }
-
-                if (Math.abs(this.cameraDirection.y) < Babylon.Engine.epsilon) {
-                    this.cameraDirection.y = 0;
-                }
-
-                if (Math.abs(this.cameraDirection.z) < Babylon.Engine.epsilon) {
-                    this.cameraDirection.z = 0;
-                }
-
-                this.cameraDirection.scaleInPlace(this.inertia);
-            }
-        },
-
-        _collideWithWorld: function (velocity) {
-            this._oldPosition = this.position.clone();
-            this._collider.radius = this.ellipsoid;
-
-            this._scene._getNewPosition(
-                this._oldPosition,
-                velocity,
-                this._collider,
-                3,
-                this._newPosition
-            );
-            this._newPosition.subtractToRef(this._oldPosition, this._diffPosition);
-
-            if (this._diffPosition.length() > Babylon.Engine.collisionsEpsilon) {
-                this.position.addInPlace(this._diffPosition);
-                if (this.onCollide) {
-                    if (this._collider.collisionFound) {
-                        var mesh = (this._collider.collisionFound)
-                            ? this._collider.collidedMesh
-                            : null;
-
-                        if (config.DEBUG) {
-                            if (this.hMesh) {
-                                this.hMesh.material.emissiveColor = this.hMesh.material.oColor;
-                            }
-
-                            this.hMesh = mesh;
-                            this.hMesh.material.oColor = this.hMesh.material.emissiveColor;
-                            this.hMesh.material.emissiveColor = new Babylon.Color4(1, 1, 0, 0.5);
-                        }
-
-                        var direction = 0;
-                        if (this._collider.normalizedVelocity.x < 0) {
-                            direction = DIRECTIONS.LEFT;
-                        } else if (this._collider.normalizedVelocity.x > 0) {
-                            direction = DIRECTIONS.RIGHT;
-                        } else if (this._collider.normalizedVelocity.y < 0) {
-                            direction = DIRECTIONS.DOWN;
-                        } else if (this._collider.normalizedVelocity.y > 0) {
-                            direction = DIRECTIONS.UP;
-                        }
-
-                        this.onCollide(mesh, direction);
-                    }
-                }
-            }
-        }
-    });
-
+    ['game/config', 'game/constants', 'game/player/camera',
+     'util/events', 'babylon', 'underscore'],
+    function(config, constants, PlayerCamera,
+             events, Babylon, _) {
 
     var Player = function(level) {
         this._level = level;
@@ -148,8 +18,7 @@ define('game/player',
             this._body.material.alpha = 0.5;
         }
 
-        this._facingDirection = DIRECTIONS.RIGHT;
-        this._gridPosition = null;
+        this._directionFacing = constants.DIRECTIONS.RIGHT;
     };
     _(Player.prototype).extend({
         setupKeyboard: function() {
@@ -160,9 +29,7 @@ define('game/player',
                 direction = 0,
                 jumping = false,
                 falling = false,
-                jumpStart = 0,
-                grabbing = false,
-                grabbedBox = null;
+                jumpStart = 0;
 
             var startJump = function() {
                 jumping = true;
@@ -174,12 +41,12 @@ define('game/player',
                 switch(event.keyCode) {
                     case events.KEYS.A:
                         moveLeft = true;
-                        direction = DIRECTIONS.LEFT;
+                        direction = constants.DIRECTIONS.LEFT;
                         break;
 
                     case events.KEYS.D:
                         moveRight = true;
-                        direction = DIRECTIONS.RIGHT;
+                        direction = constants.DIRECTIONS.RIGHT;
                         break;
 
                     case events.KEYS.W:
@@ -195,12 +62,12 @@ define('game/player',
                 switch(event.keyCode) {
                     case events.KEYS.A:
                         moveLeft = false;
-                        direction = (moveRight) ? DIRECTIONS.RIGHT : 0;
+                        direction = (moveRight) ? constants.DIRECTIONS.RIGHT : 0;
                         break;
 
                     case events.KEYS.D:
                         moveRight = false;
-                        direction = (moveLeft) ? DIRECTIONS.LEFT : 0;
+                        direction = (moveLeft) ? constants.DIRECTIONS.LEFT : 0;
                         break;
 
                     case events.KEYS.W:
@@ -219,14 +86,14 @@ define('game/player',
                 if (jumping) {
                     var jumpDiff = self._camera.position.y - jumpStart;
                     if (!falling && jumpDiff < config.PLAYER.MOVEMENT.JUMP.HEIGHT) {
-                        jumpDirection = DIRECTIONS.UP;
+                        jumpDirection = constants.DIRECTIONS.UP;
                     } else {
                         falling = true;
                     }
                 }
 
                 if (direction) {
-                    self._facingDirection = direction;
+                    self._directionFacing = direction;
                 }
 
                 self._camera.manualUpdate(direction | jumpDirection);
@@ -269,7 +136,7 @@ define('game/player',
 
             this._camera.onCollide = function(mesh, direction) {
                 if (mesh) {
-                    if (jumping && direction === DIRECTIONS.UP) {
+                    if (jumping && direction === constants.DIRECTIONS.UP) {
                         falling = true;
                     } else if (falling) {
                         jumping = falling = false;
@@ -281,14 +148,30 @@ define('game/player',
             };
         },
 
+        /**
+         * Return the mesh representing this player
+         *
+         * @returns {Babylon.Mesh}
+         */
         getMesh: function() {
             return this._body;
         },
 
+        /**
+         * Return the player's position
+         *
+         * @returns {Babylon.Vector3}
+         */
         getPosition: function() {
             return this._camera.position;
         },
 
+        /**
+         * Sets our players position on the board and creates the camera tied to the player.
+         * This camera acts as the collision checker and 'body' for the player.
+         *
+         * @param {Babylon.Vector3} vector
+         */
         setPosition: function(vector) {
             this.originalPosition = vector.clone();
             this._body.position = vector.clone();
@@ -308,12 +191,13 @@ define('game/player',
             this.setupKeyboard();
         },
 
-        getGridPosition: function() {
-            return new Babylon.Vector2(
-                // @TODO move this calc to Level
-                Math.round(this._camera.position.x / config.BLOCK_SIZE),
-                Math.round(this._camera.position.y / config.BLOCK_SIZE)
-            );
+        /**
+         * Return the direction the player is facing
+         *
+         * @returns {int}
+         */
+        getDirectionFacing: function() {
+            return this._directionFacing;
         }
     });
 
