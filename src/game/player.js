@@ -29,7 +29,11 @@ define('game/player',
                 direction = 0,
                 jumping = false,
                 falling = false,
-                jumpStart = 0;
+                jumpStart = 0,
+                movingBlock = false,
+                blockBeingMoved = null,
+                blockStart = null,
+                blockAnimating = false;
 
             var startJump = function() {
                 jumping = true;
@@ -51,8 +55,19 @@ define('game/player',
 
                     case events.KEYS.W:
                         moveUp = true;
-                        if (!jumping && !falling) {
+                        if (!jumping && !falling && !movingBlock) {
                             startJump();
+                        }
+                        break;
+
+                    case events.KEYS.SPACE:
+                        event.preventDefault();
+
+                        if (!movingBlock && self._level.isPlayerNextToMovableBlock()) {
+                            blockBeingMoved = self._level.getBlockNextToPlayer();
+console.log("Moving block ", blockBeingMoved.id);
+                            blockStart = blockBeingMoved.position.clone();
+                            movingBlock = true;
                         }
                         break;
                 }
@@ -75,16 +90,23 @@ define('game/player',
                         break;
 
                     case events.KEYS.SPACE:
-
                         event.preventDefault();
+
+                        if (movingBlock) {
+console.log("No longer moving block");
+                            movingBlock = false;
+                        }
                         break;
                 }
             });
 
             this._level._scene.registerBeforeRender(function() {
-                var jumpDirection = 0;
+                var startPosition = self._camera.position.clone(),
+                    jumpDirection = 0,
+                    forceDirection = direction;
+
                 if (jumping) {
-                    var jumpDiff = self._camera.position.y - jumpStart;
+                    var jumpDiff = startPosition.y - jumpStart;
                     if (!falling && jumpDiff < config.PLAYER.MOVEMENT.JUMP.HEIGHT) {
                         jumpDirection = constants.DIRECTIONS.UP;
                     } else {
@@ -92,16 +114,46 @@ define('game/player',
                     }
                 }
 
-                if (direction) {
-                    self._directionFacing = direction;
+                if (blockAnimating) {
+                    forceDirection = self._directionFacing;
+                } else if (!movingBlock) {
+                    blockBeingMoved = null;
+                    blockStart = null;
                 }
 
-                self._camera.manualUpdate(direction | jumpDirection);
+                if (direction && !blockAnimating) {
+                    self._directionFacing = direction;
+
+                    if (movingBlock) {
+                        blockAnimating = direction;
+                    }
+                }
+
+                self._camera.manualUpdate(forceDirection | jumpDirection, blockAnimating);
 
                 // Make the player follow the camera
                 self._body.position.x = self._camera.position.x;
                 self._body.position.y = self._camera.position.y;
 
+                if (blockAnimating) {
+                    var xPos = self._camera.position.x - startPosition.x,
+//                        yPos = self._camera.position.y - startPosition.y,
+                        modifier = (blockAnimating === constants.DIRECTIONS.RIGHT) ? config.BLOCK_SIZE : -config.BLOCK_SIZE;
+                    if (Math.abs(blockBeingMoved.position.x + xPos - blockStart.x) >= config.BLOCK_SIZE) {
+                        blockBeingMoved.position.x = blockStart.x + modifier;
+                        self._level.updateBlockCoordinates(blockBeingMoved);
+                        blockAnimating = false;
+                    } else {
+                        blockBeingMoved.position.x += xPos;
+                    }
+//                    if (Math.abs(blockBeingMoved.position.y + yPos - blockStart.y) >= config.BLOCK_SIZE) {
+//                        blockBeingMoved.position.y = blockStart.y + modifier;
+//                    } else {
+//                        blockBeingMoved.position.y += yPos;
+//                    }
+                }
+
+                // Show our ellipsoid
                 if (config.DEBUG) {
                     if (!self.ellipsoid) {
                         self.ellipsoid = Babylon.Mesh.CreateSphere(
@@ -113,11 +165,11 @@ define('game/player',
                         );
 
                         self.ellipsoid.material = new Babylon.StandardMaterial(
-                            '', self._level._scene);
+                            'MatEllip', self._level._scene);
                         self.ellipsoid.material.diffuseColor =
                             self.ellipsoid.material.specularColor =
                             self.ellipsoid.material.emissiveColor =
-                                new Babylon.Color4(1, 1, 0, 0.5);
+                                new Babylon.Color4(1, 1, 1, 0.5);
                     }
                     self.ellipsoid.position.x = self._camera.position.x;
                     self.ellipsoid.position.y = self._camera.position.y;
@@ -127,6 +179,8 @@ define('game/player',
                 self._level._scene.activeCamera.position.y =
                     self._body.position.y + config.CAMERA_HEIGHT;
                 self._level._scene.activeCamera.setTarget(self._body.position);
+
+                self._level._scene.activeLight.position = self._level._scene.activeCamera.position.clone();
 
                 if (self._camera.position.y < config.PLAYER.RESET_HEIGHT) {
                     self._camera.position = self.originalPosition.clone();

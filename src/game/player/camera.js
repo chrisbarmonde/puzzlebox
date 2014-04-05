@@ -3,7 +3,7 @@ define('game/player/camera',
     function(config, constants, Babylon) {
 
     var PlayerCamera = Babylon.FreeCamera.extend({
-        manualInputs: function(direction) {
+        manualInputs: function(direction, movingBlock) {
             if (!this._localDirection) {
                 this._localDirection = Babylon.Vector3.Zero();
                 this._transformedDirection = Babylon.Vector3.Zero();
@@ -14,12 +14,15 @@ define('game/player/camera',
             }
 
             //var speed = this._computeLocalCameraSpeed();
+            var movementSpeed = (movingBlock)
+                ? config.PLAYER.MOVEMENT.PULL_SPEED
+                : config.PLAYER.MOVEMENT.WALK_SPEED;
 
             var x = 0, y = 0, z = 0;
             if (direction & constants.DIRECTIONS.RIGHT) {
-                x = config.PLAYER.MOVEMENT.WALK_SPEED;
+                x = movementSpeed;
             } else if (direction & constants.DIRECTIONS.LEFT) {
-                x = -config.PLAYER.MOVEMENT.WALK_SPEED;
+                x = -movementSpeed;
             }
             if (direction & constants.DIRECTIONS.UP) {
                 y = config.PLAYER.MOVEMENT.JUMP.SPEED;
@@ -38,8 +41,8 @@ define('game/player/camera',
             this.cameraDirection.addInPlace(this._transformedDirection);
         },
 
-        manualUpdate: function(direction) {
-            this.manualInputs(direction);
+        manualUpdate: function(direction, movingBlock) {
+            this.manualInputs(direction, movingBlock);
 
             var needToMove = (this._needMoveForGravity
                 || Math.abs(this.cameraDirection.x) > 0
@@ -98,6 +101,7 @@ define('game/player/camera',
                             ? this._collider.collidedMesh
                             : null;
 
+                        // Highlight the mesh we collided with
                         if (config.DEBUG) {
                             if (this.hMesh) {
                                 this.hMesh.material.emissiveColor = this.hMesh.material.oColor;
@@ -105,7 +109,7 @@ define('game/player/camera',
 
                             this.hMesh = mesh;
                             this.hMesh.material.oColor = this.hMesh.material.emissiveColor;
-                            this.hMesh.material.emissiveColor = new Babylon.Color4(1, 1, 0, 0.5);
+                            this.hMesh.material.emissiveColor = new Babylon.Color4(1, 1, 1, 0.25);
                         }
 
                         var direction = 0;

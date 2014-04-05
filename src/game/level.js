@@ -1,6 +1,6 @@
 define('game/level',
-    ['game/config', 'game/player', 'babylon', 'underscore'],
-    function(config, Player, Babylon, _) {
+    ['game/config', 'game/constants', 'game/player', 'babylon', 'underscore'],
+    function(config, constants, Player, Babylon, _) {
 
     /**
      * Colors of our matching blocks
@@ -207,7 +207,7 @@ define('game/level',
         /**
          * Adds a generic block to the grid
          *
-         * @parma {string} blockType
+         * @param {string} blockType
          * @param {(Babylon.Color3|Babylon.Color4)} color
          * @param {Babylon.Vector2} position
          * @param {boolean} movable - True if the block is movable by the player
@@ -216,8 +216,8 @@ define('game/level',
          */
         _addBlock: function(blockType, color, position, movable) {
             var name = '' + position.x + position.y,
-                block = Babylon.Mesh.CreateBox('Box' + name, config.BLOCK_SIZE, this._scene);
-            block.material = new Babylon.StandardMaterial('', this._scene);
+                block = Babylon.Mesh.CreateBox('Box' + name, config.BLOCK_SIZE, this._scene, true);
+            block.material = new Babylon.StandardMaterial('Mat' + name, this._scene);
             block.material.emissiveColor = color;
             block.material.backFaceCulling = false;
             block.position = this._getBlockPosition(position);
@@ -291,17 +291,72 @@ define('game/level',
             );
         },
 
+        getGridCoordinates: function(position) {
+            return new Babylon.Vector2(
+                Math.round(position.x / config.BLOCK_SIZE),
+                Math.round(position.y / config.BLOCK_SIZE)
+            );
+        },
+
+        getBlock: function(position) {
+            return this._grid[position.x] && this._grid[position.x][position.y];
+        },
+
+        isMovableBlock: function(position) {
+            var block = this.getBlock(position);
+            return (block) ? block.movable : false;
+        },
+
+        updateBlockCoordinates: function(block) {
+            if (!block.movable) {
+                throw "Attempting to move an immovable block";
+            }
+
+            var self = this;
+            _(this._grid).each(function(col, x) {
+                _(col).each(function(_block, y) {
+                    if (block === _block) {
+                        self._grid[x][y] = null;
+                    }
+                });
+            });
+
+            var coords = this.getGridCoordinates(block.position);
+            this._grid[coords.x][coords.y] = block;
+        },
+
         /**
          * Return the (x,y) coordinates of the player on the grid
          *
          * @returns {BABYLON.Vector2}
          */
-        getPlayerPosition: function() {
+        getPlayerCoordinates: function() {
             var playerPosition = this.getPlayer().getPosition();
-            return new Babylon.Vector2(
-                Math.floor(playerPosition.x / config.BLOCK_SIZE),
-                Math.floor(playerPosition.y / config.BLOCK_SIZE)
-            );
+            return this.getGridCoordinates(playerPosition);
+        },
+
+        /**
+         * Return the block next to the player in the direction the player is facing.
+         * Returns null if there is no block.
+         *
+         * @returns {?Babylon.Mesh}
+         */
+        getBlockNextToPlayer: function() {
+            var coords = this.getPlayerCoordinates(),
+                direction = this.getPlayer().getDirectionFacing();
+
+            if (direction === constants.DIRECTIONS.RIGHT) {
+                return this.getBlock(new Babylon.Vector2(coords.x + 1, coords.y));
+            } else if (direction === constants.DIRECTIONS.LEFT) {
+                return this.getBlock(new Babylon.Vector2(coords.x - 1, coords.y));
+            }
+
+            return null;
+        },
+
+        isPlayerNextToMovableBlock: function() {
+            var block = this.getBlockNextToPlayer();
+            return (block) ? block.movable : false;
         }
     });
     _(Level).extend({

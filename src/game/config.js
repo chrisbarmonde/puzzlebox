@@ -3,6 +3,7 @@ define('game/config', function() {
         DEBUG: true,
         PLAYER: {
             MOVEMENT: {
+                PULL_SPEED: 0.02,
                 WALK_SPEED: 0.1,
                 JUMP: {
                     HEIGHT: 4.25,

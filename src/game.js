@@ -19,7 +19,7 @@ define('game',
         createScene: function(onCreate) {
             var scene = new Babylon.Scene(this.getEngine());
             this._createCamera(scene);
-            this._createLight(scene);
+            scene.activeLight = this._createLight(scene);
 
             scene.gravity = new Babylon.Vector3(0, config.GRAVITY, 0);
             scene.collisionsEnabled = true;
@@ -49,7 +49,10 @@ define('game',
         },
 
         _createLight: function(scene) {
-            return new Babylon.PointLight('Light', new Babylon.Vector3(0, 0, -75.0), scene);
+            var light = new Babylon.PointLight('Light', new Babylon.Vector3(0, 0, -75.0), scene);
+            light.intensity = 0.5;
+            light.specular = new Babylon.Color4(0, 0, 0.5, 0.5);
+            return light;
         }
     });
 
