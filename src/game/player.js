@@ -285,6 +285,10 @@ define('game/player',
             return this._body;
         },
 
+        getPosition: function() {
+            return this._camera.position;
+        },
+
         setPosition: function(vector) {
             this.originalPosition = vector.clone();
             this._body.position = vector.clone();

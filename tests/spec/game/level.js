@@ -78,16 +78,14 @@ define('spec/game/level',
         });
 
         describe('Blocks', function() {
-            var grid = [
-                '    S',
-                '  P T P',
-                ' R B G Y'
-            ];
-
             beforeEach(function() {
                 this.level = new FakeLevel(this.scene);
                 this.level.getGrid = function() {
-                    return grid;
+                    return [
+                        '    S',
+                        '  P T P',
+                        ' R B G Y'
+                    ];
                 };
                 this.level.setupGrid();
             });
@@ -167,6 +165,15 @@ define('spec/game/level',
                 });
 
                 expect(count).toBe(1);
+            });
+
+            it('places player above start block', function() {
+                console.log(this.level._grid);
+                expect(this.level._grid[4][2]._type).toBe(Level.BLOCK_TYPES.PLATFORM);
+
+                var pos = this.level.getPlayer().getPosition();
+                expect(Math.floor(pos.x / config.BLOCK_SIZE)).toBe(4);
+                expect(Math.floor(pos.y / config.BLOCK_SIZE)).toBe(3);
             });
         });
     });

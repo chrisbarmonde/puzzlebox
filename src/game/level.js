@@ -107,9 +107,11 @@ define('game/level',
             var maxX = 0,
                 maxY = 0,
                 hasPlayer = false,
-                self = this;
+                self = this,
+                grid = this.getGrid();
 
-            _(this.getGrid().reverse()).each(function(row, y) {
+            grid.reverse();
+            _(grid).each(function(row, y) {
                 _(row).each(function(blockType, x) {
                     if (!self._grid[x]) {
                         self._grid[x] = {};
@@ -213,7 +215,7 @@ define('game/level',
          * @private
          */
         _addBlock: function(blockType, color, position, movable) {
-            var name = position.x + position.y,
+            var name = '' + position.x + position.y,
                 block = Babylon.Mesh.CreateBox('Box' + name, config.BLOCK_SIZE, this._scene);
             block.material = new Babylon.StandardMaterial('', this._scene);
             block.material.emissiveColor = color;
