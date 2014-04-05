@@ -13,9 +13,12 @@ define('game/config', function() {
                 WIDTH:  5,
                 HEIGHT: 8,
                 LENGTH: 2
-            }
+            },
+            RESET_HEIGHT: -50
         },
         BLOCK_SIZE: 10,
+        CAMERA_HEIGHT: 25,
+
         GRAVITY: -2.0
     };
 });

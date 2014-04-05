@@ -2,6 +2,8 @@ Features
 * Store which direction player is facing
 * Determine which coordinate the player is in at any given time
 --> doing this, we won't have to rely on collisions, only checking for nearby blocks
+* Start blocks
+* End blocks
 
 Bugs
 * Can jump if falling action not initiated from a jump (Need to check gravity calcs for downward motion)

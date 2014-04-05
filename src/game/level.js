@@ -20,11 +20,10 @@ define('game/level',
      * @enum {int}
      */
     var BLOCK_TYPES = {
-        PLAYER: 0,
         PLATFORM: 1,
         PLATFORM_THIN: 2,
         START: 3,
-        FINISH: 4,
+        END: 4,
         RED: 5,
         GREEN: 6,
         YELLOW: 7,
@@ -42,6 +41,24 @@ define('game/level',
         BLOCK_TYPES.YELLOW,
         BLOCK_TYPES.BLUE
     ];
+
+    /**
+     * Mapping of the characters used in the level maps to
+     * the type of block they represent.
+     *
+     * @enum {int}
+     */
+    var BLOCK_MAP = {
+        S: BLOCK_TYPES.PLATFORM,
+        E: BLOCK_TYPES.PLATFORM,
+        P: BLOCK_TYPES.PLATFORM,
+        T: BLOCK_TYPES.PLATFORM_THIN,
+        R: BLOCK_TYPES.RED,
+        G: BLOCK_TYPES.GREEN,
+        Y: BLOCK_TYPES.YELLOW,
+        B: BLOCK_TYPES.BLUE
+    };
+    var BLOCK_MAP_INVERSE = _(BLOCK_MAP).invert();
 
     /**
      * Reverse mapping for block types
@@ -69,21 +86,15 @@ define('game/level',
         /**
          * Returns the grid of blocks formatted as x-y axes in rows.
          * Example:
-         * {
-         *   2: {
-         *     3: Level.BLOCK_TYPES.PLATFORM,
-         *     4: Level.BLOCK_TYPES.PLATFORM,
-         *     5: Level.BLOCK_TYPES.PLATFORM
-         *   }
-         *   3: {
-         *     4: Level.BLOCK_TYPES.RED
-         *   }
-         * }
+         * [
+         *   '   R',
+         *   '  PPP'
+         * ]
          *
-         * This would create three platform blocks at coords (2,3), (2,4),
-         * and (2,5) with one red block at (3,4)
+         * This would create three platform blocks at coords (1,3), (1,4),
+         * and (1,5) with one red block at (2,4)
          *
-         * @returns {object}
+         * @returns {string[]}
          */
         getGrid: function() {
             throw "You must create a grid";
@@ -98,31 +109,40 @@ define('game/level',
                 hasPlayer = false,
                 self = this;
 
-            _(this.getGrid()).each(function(row, y) {
+            _(this.getGrid().reverse()).each(function(row, y) {
                 _(row).each(function(blockType, x) {
                     if (!self._grid[x]) {
                         self._grid[x] = {};
                     }
 
+                    var position = new Babylon.Vector2(x, y);
                     switch (blockType) {
-                        case BLOCK_TYPES.PLAYER:
-                            self.addPlayer(new Babylon.Vector2(x, y));
+                        case 'S':
+                            self.addPlatformBlock(position);
+                            self.addPlayer(new Babylon.Vector2(x, y + 1));
+                            if (y + 1 > maxY) {
+                                maxY = y + 1;
+                            }
                             hasPlayer = true;
                             break;
 
-                        case BLOCK_TYPES.PLATFORM:
-                            self.addPlatformBlock(new Babylon.Vector2(x, y));
+                        case 'E':
+                            self.addPlatformBlock(position);
                             break;
 
-                        case BLOCK_TYPES.PLATFORM_THIN:
-                            self.addThinPlatformBlock(new Babylon.Vector2(x, y));
+                        case 'P':
+                            self.addPlatformBlock(position);
                             break;
 
-                        case BLOCK_TYPES.RED:
-                        case BLOCK_TYPES.GREEN:
-                        case BLOCK_TYPES.YELLOW:
-                        case BLOCK_TYPES.BLUE:
-                            self.addColorBlock(blockType, new Babylon.Vector2(x, y));
+                        case 'T':
+                            self.addThinPlatformBlock(position);
+                            break;
+
+                        case 'R':
+                        case 'G':
+                        case 'Y':
+                        case 'B':
+                            self.addColorBlock(BLOCK_MAP[blockType], position);
                             break;
                     }
 
@@ -175,7 +195,7 @@ define('game/level',
 
             var player = new Player(this);
 
-            position = this._getPosition(position);
+            position = this._getBlockPosition(position);
             position.y -= config.GRAVITY;
             player.setPosition(position);
 
@@ -198,7 +218,7 @@ define('game/level',
             block.material = new Babylon.StandardMaterial('', this._scene);
             block.material.emissiveColor = color;
             block.material.backFaceCulling = false;
-            block.position = this._getPosition(position);
+            block.position = this._getBlockPosition(position);
             block.checkCollisions = true;
             block.movable = movable;
             block._type = blockType;
@@ -261,7 +281,7 @@ define('game/level',
          * @returns {Babylon.Vector3}
          * @private
          */
-        _getPosition: function(position) {
+        _getBlockPosition: function(position) {
             return new Babylon.Vector3(
                 position.x * config.BLOCK_SIZE,
                 position.y * config.BLOCK_SIZE,
@@ -274,6 +294,9 @@ define('game/level',
         BLOCK_TYPES: BLOCK_TYPES,
         BLOCK_TYPES_INVERTED: BLOCK_TYPES_INVERTED,
         COLOR_TYPES: COLOR_TYPES,
+        BLOCK_MAP: BLOCK_MAP,
+        BLOCK_MAP_INVERSE: BLOCK_MAP_INVERSE,
+
         isColorBlock: function(block) {
             return !!block && _(COLOR_TYPES).contains(block._type);
         },

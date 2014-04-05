@@ -257,10 +257,11 @@ define('game/player',
                 }
 
                 self._level._scene.activeCamera.position.x = self._body.position.x;
-                self._level._scene.activeCamera.position.y = self._body.position.y;
+                self._level._scene.activeCamera.position.y =
+                    self._body.position.y + config.CAMERA_HEIGHT;
                 self._level._scene.activeCamera.setTarget(self._body.position);
 
-                if (self._camera.position.y < -50) {
+                if (self._camera.position.y < config.PLAYER.RESET_HEIGHT) {
                     self._camera.position = self.originalPosition.clone();
                     jumping = falling = false;
                 }

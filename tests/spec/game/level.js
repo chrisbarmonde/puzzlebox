@@ -4,17 +4,10 @@ define('spec/game/level',
 
     var FakeLevel = Level.extend({
         getGrid: function() {
-            return {
-                2: {
-                    3: Level.BLOCK_TYPES.PLATFORM,
-                    4: Level.BLOCK_TYPES.PLATFORM,
-                    5: Level.BLOCK_TYPES.PLATFORM
-                },
-                3: {
-                    4: Level.BLOCK_TYPES.RED,
-                    5: Level.BLOCK_TYPES.PLAYER
-                }
-            };
+            return [
+                '   RS',
+                '  PPP'
+            ];
         }
     });
 
@@ -38,7 +31,7 @@ define('spec/game/level',
         it('requires the grid to have a player', function() {
             var level = new FakeLevel(this.scene);
             level.getGrid = function() {
-                return {1: {2: Level.BLOCK_TYPES.YELLOW}};
+                return [' Y'];
             };
             expect(level.setupGrid).toThrow();
         });
@@ -46,12 +39,7 @@ define('spec/game/level',
         it("doesn't allow more than one player", function() {
             var level = new FakeLevel(this.scene);
             level.getGrid = function() {
-                return {
-                    1: {
-                        2: Level.BLOCK_TYPES.PLAYER,
-                        7: Level.BLOCK_TYPES.PLAYER
-                    }
-                };
+                return [' S    S'];
             };
             expect(level.setupGrid).toThrow();
         });
@@ -64,48 +52,37 @@ define('spec/game/level',
 
         it('automatically sets up the grid', function() {
             var level = new FakeLevel(this.scene),
-                grid = level.getGrid();
+                grid = level.getGrid().reverse();
             level.setupGrid();
             _(level._grid).each(function(row, y) {
                 _(row).each(function(block, x) {
-                    if (grid[x] && grid[x][y]) {
+                    if (grid[x] && grid[x][y] !== ' ') {
                         expect(block).toEqual(jasmine.any(Babylon.Mesh));
-                        expect(block._type).toBe(grid[x][y]);
+                        expect(block._type).toBe(Level.BLOCK_MAP[grid[x][y]]);
                     } else {
                         expect(block).toBeNull();
                     }
                 });
 
-                expect(Object.keys(row).length).toBe(4);
+                expect(Object.keys(row).length).toBe(3);
             });
 
-            expect(Object.keys(level._grid).length).toBe(6);
+            expect(Object.keys(level._grid).length).toBe(5);
         });
 
         it('adjusts positions based on block size', function() {
             var level = new FakeLevel(this.scene),
-                position = level._getPosition(new Babylon.Vector2(3, 5));
+                position = level._getBlockPosition(new Babylon.Vector2(3, 5));
             expect(position.x).toBe(config.BLOCK_SIZE * 3);
             expect(position.y).toBe(config.BLOCK_SIZE * 5);
         });
 
         describe('Blocks', function() {
-            var grid = {
-                1: {
-                    2: Level.BLOCK_TYPES.RED,
-                    4: Level.BLOCK_TYPES.BLUE,
-                    6: Level.BLOCK_TYPES.GREEN,
-                    8: Level.BLOCK_TYPES.YELLOW
-                },
-                2: {
-                    3: Level.BLOCK_TYPES.PLATFORM,
-                    5: Level.BLOCK_TYPES.PLATFORM_THIN,
-                    7: Level.BLOCK_TYPES.PLATFORM
-                },
-                3: {
-                    5: Level.BLOCK_TYPES.PLAYER
-                }
-            };
+            var grid = [
+                '    S',
+                '  P T P',
+                ' R B G Y'
+            ];
 
             beforeEach(function() {
                 this.level = new FakeLevel(this.scene);
@@ -162,7 +139,7 @@ define('spec/game/level',
                     });
                 });
 
-                expect(count).toBe(2);
+                expect(count).toBe(3);
             });
 
             it('makes thin platform blocks', function() {
