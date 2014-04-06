@@ -291,6 +291,12 @@ define('game/level',
             );
         },
 
+        /**
+         * Return coordinates in the grid for a position in the scene
+         *
+         * @param {Babylon.Vector3} position
+         * @returns {Babylon.Vector2}
+         */
         getGridCoordinates: function(position) {
             return new Babylon.Vector2(
                 Math.round(position.x / config.BLOCK_SIZE),
@@ -298,13 +304,43 @@ define('game/level',
             );
         },
 
-        getBlock: function(position) {
-            return this._grid[position.x] && this._grid[position.x][position.y];
+        getBlock: function(coords) {
+            return this._grid[coords.x] && this._grid[coords.x][coords.y];
         },
 
-        isMovableBlock: function(position) {
-            var block = this.getBlock(position);
+        isMovableBlock: function(coords) {
+            var block = this.getBlock(coords);
             return (block) ? block.movable : false;
+        },
+
+        canMoveBlock: function(block, direction) {
+            var coords = this.getGridCoordinates(block.position),
+                newBlock = null;
+            if (direction === constants.DIRECTIONS.LEFT) {
+                newBlock = this.getBlock(new Babylon.Vector2(coords.x - 1, coords.y));
+            } else if (direction === constants.DIRECTIONS.RIGHT) {
+                newBlock = this.getBlock(new Babylon.Vector2(coords.x + 1, coords.y));
+            }
+
+            if (newBlock) {
+                return false;
+            }
+
+            var playerCoords = this.getPlayerCoordinates(),
+                diff = playerCoords.subtract(coords),
+                platform = null;
+
+            if (diff.x < 0 && direction === constants.DIRECTIONS.LEFT) {
+                newBlock = this.getBlock(new Babylon.Vector2(playerCoords.x - 1, playerCoords.y));
+                platform = this.getBlock(new Babylon.Vector2(playerCoords.x - 1, playerCoords.y - 1));
+                return !newBlock && !!platform;
+            } else if (diff.x > 0 && direction === constants.DIRECTIONS.RIGHT) {
+                newBlock = this.getBlock(new Babylon.Vector2(playerCoords.x + 1, playerCoords.y));
+                platform = this.getBlock(new Babylon.Vector2(playerCoords.x + 1, playerCoords.y - 1));
+                return !newBlock && !!platform;
+            }
+
+            return true;
         },
 
         updateBlockCoordinates: function(block) {
@@ -323,6 +359,42 @@ define('game/level',
 
             var coords = this.getGridCoordinates(block.position);
             this._grid[coords.x][coords.y] = block;
+
+            var fallTo = null;
+            if (!this.getBlock(new Babylon.Vector2(coords.x, coords.y - 1))) {
+                for (var y = coords.y - 2; y >= 0; y--) {
+                    var gridCoords = new Babylon.Vector2(coords.x, y),
+                        blockBelow = this.getBlock(gridCoords);
+                    if (blockBelow) {
+                        fallTo = gridCoords;
+                        fallTo.y += 1;
+                        break;
+                    }
+                }
+
+                if (!fallTo) {
+                    fallTo = new Babylon.Vector2(coords.x, -20);
+                }
+            }
+
+            if (fallTo) {
+                var newPosition = this._getBlockPosition(fallTo),
+                    steps = 30,
+                    step = (newPosition.y - block.position.y) / steps;
+                var anim = function() {
+                    if (block.position.y + step <= newPosition.y) {
+                        block.position.y = newPosition.y;
+
+                        self._grid[coords.x][coords.y] = null;
+                        self._grid[fallTo.x][fallTo.y] = block;
+
+                        self._scene.unregisterBeforeRender(anim);
+                    } else {
+                        block.position.y += step;
+                    }
+                };
+                this._scene.registerBeforeRender(anim);
+            }
         },
 
         /**

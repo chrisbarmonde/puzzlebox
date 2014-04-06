@@ -65,7 +65,6 @@ define('game/player',
 
                         if (!movingBlock && self._level.isPlayerNextToMovableBlock()) {
                             blockBeingMoved = self._level.getBlockNextToPlayer();
-console.log("Moving block ", blockBeingMoved.id);
                             blockStart = blockBeingMoved.position.clone();
                             movingBlock = true;
                         }
@@ -93,7 +92,6 @@ console.log("Moving block ", blockBeingMoved.id);
                         event.preventDefault();
 
                         if (movingBlock) {
-console.log("No longer moving block");
                             movingBlock = false;
                         }
                         break;
@@ -116,7 +114,9 @@ console.log("No longer moving block");
 
                 if (blockAnimating) {
                     forceDirection = self._directionFacing;
-                } else if (!movingBlock) {
+                } else if (movingBlock) {
+                    forceDirection = 0;
+                } else {
                     blockBeingMoved = null;
                     blockStart = null;
                 }
@@ -124,16 +124,12 @@ console.log("No longer moving block");
                 if (direction && !blockAnimating) {
                     self._directionFacing = direction;
 
-                    if (movingBlock) {
+                    if (movingBlock && self._level.canMoveBlock(blockBeingMoved, direction)) {
                         blockAnimating = direction;
                     }
                 }
 
                 self._camera.manualUpdate(forceDirection | jumpDirection, blockAnimating);
-
-                // Make the player follow the camera
-                self._body.position.x = self._camera.position.x;
-                self._body.position.y = self._camera.position.y;
 
                 if (blockAnimating) {
                     var xPos = self._camera.position.x - startPosition.x,
@@ -142,7 +138,9 @@ console.log("No longer moving block");
                     if (Math.abs(blockBeingMoved.position.x + xPos - blockStart.x) >= config.BLOCK_SIZE) {
                         blockBeingMoved.position.x = blockStart.x + modifier;
                         self._level.updateBlockCoordinates(blockBeingMoved);
+
                         blockAnimating = false;
+                        blockStart = blockBeingMoved.position.clone();
                     } else {
                         blockBeingMoved.position.x += xPos;
                     }
@@ -152,6 +150,10 @@ console.log("No longer moving block");
 //                        blockBeingMoved.position.y += yPos;
 //                    }
                 }
+
+                // Make the player follow the camera
+                self._body.position.x = self._camera.position.x;
+                self._body.position.y = self._camera.position.y;
 
                 // Show our ellipsoid
                 if (config.DEBUG) {
