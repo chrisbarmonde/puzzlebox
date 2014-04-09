@@ -359,6 +359,7 @@ define('game/level',
 
             var coords = this.getGridCoordinates(block.position);
             this._grid[coords.x][coords.y] = block;
+            block._resetPointsArrayCache();
 
             var fallTo = null;
             if (!this.getBlock(new Babylon.Vector2(coords.x, coords.y - 1))) {
@@ -379,8 +380,7 @@ define('game/level',
 
             if (fallTo) {
                 var newPosition = this._getBlockPosition(fallTo),
-                    steps = 30,
-                    step = (newPosition.y - block.position.y) / steps;
+                    step = (newPosition.y - block.position.y) / config.FPS;
                 var anim = function() {
                     if (block.position.y + step <= newPosition.y) {
                         block.position.y = newPosition.y;
@@ -388,12 +388,47 @@ define('game/level',
                         self._grid[coords.x][coords.y] = null;
                         self._grid[fallTo.x][fallTo.y] = block;
 
+                        block._resetPointsArrayCache();
+                        self.checkForMatch(block);
                         self._scene.unregisterBeforeRender(anim);
                     } else {
                         block.position.y += step;
                     }
                 };
                 this._scene.registerBeforeRender(anim);
+            } else {
+                this.checkForMatch(block);
+            }
+        },
+
+        checkForMatch: function(block) {
+            if (!_(BLOCK_TYPES).contains(block._type)) {
+                return false;
+            }
+
+            var coords = this.getGridCoordinates(block.position);
+            var positions = [
+                [coords.x + 1, coords.y], // Right
+                [coords.x, coords.y - 1], // Down
+                [coords.x - 1, coords.y] // Left
+            ];
+            var matchingBlocks = [];
+            var self = this;
+            _(positions).each(function(position) {
+                var testBlock = self._grid[position[0]][position[1]];
+                if (testBlock && testBlock._type === block._type) {
+                    matchingBlocks.push(testBlock);
+                }
+            });
+
+            if (matchingBlocks.length > 0) {
+                matchingBlocks.push(block);
+                _(matchingBlocks).each(function(b) {
+                    b.material.wireframe = true;
+                    b.dispose();
+                    coords = self.getGridCoordinates(b.position);
+                    self._grid[coords.x][coords.y] = null;
+                });
             }
         },
 

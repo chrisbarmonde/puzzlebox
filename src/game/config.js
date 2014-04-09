@@ -20,6 +20,7 @@ define('game/config', function() {
         BLOCK_SIZE: 10,
         CAMERA_HEIGHT: 25,
 
-        GRAVITY: -2.0
+        GRAVITY: -2.0,
+        FPS: 30
     };
 });

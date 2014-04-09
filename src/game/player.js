@@ -129,26 +129,29 @@ define('game/player',
                     }
                 }
 
-                self._camera.manualUpdate(forceDirection | jumpDirection, blockAnimating);
-
                 if (blockAnimating) {
-                    var xPos = self._camera.position.x - startPosition.x,
-//                        yPos = self._camera.position.y - startPosition.y,
-                        modifier = (blockAnimating === constants.DIRECTIONS.RIGHT) ? config.BLOCK_SIZE : -config.BLOCK_SIZE;
+                    var xPos = config.BLOCK_SIZE / (2 * config.FPS),
+                        modifier = config.BLOCK_SIZE;
+
+                    if (blockAnimating === constants.DIRECTIONS.LEFT) {
+                        xPos *= -1;
+                        modifier *= -1;
+                    }
+
                     if (Math.abs(blockBeingMoved.position.x + xPos - blockStart.x) >= config.BLOCK_SIZE) {
+                        self._camera.position.x += (blockStart.x + modifier) - blockBeingMoved.position.x;
                         blockBeingMoved.position.x = blockStart.x + modifier;
+
                         self._level.updateBlockCoordinates(blockBeingMoved);
 
                         blockAnimating = false;
                         blockStart = blockBeingMoved.position.clone();
                     } else {
+                        self._camera.position.x += xPos;
                         blockBeingMoved.position.x += xPos;
                     }
-//                    if (Math.abs(blockBeingMoved.position.y + yPos - blockStart.y) >= config.BLOCK_SIZE) {
-//                        blockBeingMoved.position.y = blockStart.y + modifier;
-//                    } else {
-//                        blockBeingMoved.position.y += yPos;
-//                    }
+                } else {
+                    self._camera.manualUpdate(forceDirection | jumpDirection, blockAnimating);
                 }
 
                 // Make the player follow the camera
