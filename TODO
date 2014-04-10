@@ -2,8 +2,9 @@ Features
 * Start blocks
 * End blocks
 * Sounds?
+* Level selector
+* Move levels to flat file format
 
 Bugs
 * Can jump if falling action not initiated from a jump (Need to check gravity calcs for downward motion)
-* Somehow managed to move a box halfway
 * Gravity randomly stops working while falling infinitely

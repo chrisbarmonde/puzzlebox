@@ -188,20 +188,30 @@ define('game/level',
         /**
          * Creates a new Player at the given position and adds it to the grid
          *
-         * @param {Babylon.Vector2} position
+         * @param {Babylon.Vector2} coords
          */
-        addPlayer: function(position) {
+        addPlayer: function(coords) {
             if (this._player) {
                 throw "Multiple players defined";
             }
 
-            var player = new Player(this);
+            this._player = new Player(this);
+            this.setPlayerCoords(coords);
+        },
 
-            position = this._getBlockPosition(position);
+        /**
+         * Sets a player's position on the grid based on a set of coordinates
+         *
+         * @param {Babylon.Vector2} coords
+         */
+        setPlayerCoords: function(coords) {
+            if (!this._player) {
+                throw "No player created";
+            }
+
+            var position = this._getBlockPosition(coords);
             position.y -= config.GRAVITY;
-            player.setPosition(position);
-
-            this._player = player;
+            this._player.setPosition(position);
         },
 
         /**
@@ -304,16 +314,44 @@ define('game/level',
             );
         },
 
+        /**
+         * Returns a block at the given coordinates on the grid
+         *
+         * @param {Babylon.Vector2} coords
+         * @returns {?Babylon.Mesh}
+         */
         getBlock: function(coords) {
             return this._grid[coords.x] && this._grid[coords.x][coords.y];
         },
 
+        /**
+         * Returns true if the block at the given coordinates is movable
+         *
+         * @param {Babylon.Vector2} coords
+         * @returns {boolean}
+         */
         isMovableBlock: function(coords) {
             var block = this.getBlock(coords);
             return (block) ? block.movable : false;
         },
 
+        /**
+         * Determines whether the player can move the block in the direction
+         * specified. The mechanics of the game dictate that a block can only
+         * be pushed if there is an open space behind it, and it can only be
+         * pulled if there is an open space behind *the player* that the player
+         * can move into once the move is done.
+         *
+         * @param {Babylon.Mesh} block
+         * @param {int} direction - DIRECTIONS constant
+         * @returns {boolean}
+         */
         canMoveBlock: function(block, direction) {
+            // If the block is falling, it can't be moved
+            if (block._falling) {
+                return false;
+            }
+
             var coords = this.getGridCoordinates(block.position),
                 newBlock = null;
             if (direction === constants.DIRECTIONS.LEFT) {
@@ -322,20 +360,29 @@ define('game/level',
                 newBlock = this.getBlock(new Babylon.Vector2(coords.x + 1, coords.y));
             }
 
+            // If there's a block in the way of where we're going, it can't
+            // be moved in that direction
             if (newBlock) {
                 return false;
             }
 
             var playerCoords = this.getPlayerCoordinates(),
+                // Used to determine if player is on the left or right of the block
                 diff = playerCoords.subtract(coords),
                 platform = null;
 
             if (diff.x < 0 && direction === constants.DIRECTIONS.LEFT) {
+                // If the player is on the left and we're pulling left...
+                // Check if there's a block to the left of the player
                 newBlock = this.getBlock(new Babylon.Vector2(playerCoords.x - 1, playerCoords.y));
+                // And check if there's a platform to the left of the player
                 platform = this.getBlock(new Babylon.Vector2(playerCoords.x - 1, playerCoords.y - 1));
                 return !newBlock && !!platform;
             } else if (diff.x > 0 && direction === constants.DIRECTIONS.RIGHT) {
+                // if the player is on the right and we're pulling right...
+                // Check if there's a block to the right of the player
                 newBlock = this.getBlock(new Babylon.Vector2(playerCoords.x + 1, playerCoords.y));
+                // And check if there's a platform to the right of the player
                 platform = this.getBlock(new Babylon.Vector2(playerCoords.x + 1, playerCoords.y - 1));
                 return !newBlock && !!platform;
             }
@@ -343,6 +390,13 @@ define('game/level',
             return true;
         },
 
+        /**
+         * Updates a block's coordinates once it's finished being pushed or pulled.
+         * If it's been pushed off a platform, it will then fall until it reaches
+         * the next nearest block or off into infinity, never to be seen again.
+         *
+         * @param {Babylon.Mesh} block
+         */
         updateBlockCoordinates: function(block) {
             if (!block.movable) {
                 throw "Attempting to move an immovable block";
@@ -379,6 +433,7 @@ define('game/level',
             }
 
             if (fallTo) {
+                block._falling = true;
                 var newPosition = this._getBlockPosition(fallTo),
                     step = (newPosition.y - block.position.y) / config.FPS;
                 var anim = function() {
@@ -388,6 +443,7 @@ define('game/level',
                         self._grid[coords.x][coords.y] = null;
                         self._grid[fallTo.x][fallTo.y] = block;
 
+                        block._falling = false;
                         block._resetPointsArrayCache();
                         self.checkForMatch(block);
                         self._scene.unregisterBeforeRender(anim);
