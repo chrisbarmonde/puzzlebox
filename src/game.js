@@ -18,12 +18,12 @@ define('game',
 
         createScene: function(onCreate) {
             var scene = new Babylon.Scene(this.getEngine());
-            this._createCamera(scene);
+            //this._createCamera(scene);
             scene.activeLight = this._createLight(scene);
 
             scene.gravity = new Babylon.Vector3(0, config.GRAVITY, 0);
             scene.collisionsEnabled = true;
-            scene.activeCamera.attachControl(this._canvas, true);
+            //scene.activeCamera.attachControl(this._canvas, true);
 
             onCreate(scene);
 

@@ -29,7 +29,7 @@ define('game/player/camera',
             } else if (direction & constants.DIRECTIONS.DOWN) {
                 y = -config.PLAYER.MOVEMENT.JUMP.SPEED;
             }
-
+console.log(x, y, z);
             this._localDirection.copyFromFloats(x, y, z);
 
             this.getViewMatrix().invertToRef(this._cameraTransformMatrix);
@@ -81,7 +81,8 @@ define('game/player/camera',
         },
 
         _collideWithWorld: function (velocity) {
-            this._oldPosition = this.position.clone();
+            //this._oldPosition = this.position.clone();
+            this.position.subtractFromFloatsToRef(0, this.ellipsoid.y, 0, this._oldPosition);
             this._collider.radius = this.ellipsoid;
 
             this._scene._getNewPosition(

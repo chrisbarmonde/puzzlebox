@@ -174,6 +174,8 @@ define('game/level',
                     }
                 }
             }
+
+            this.getPlayer()._camera.setTarget(this._grid[5][2].position);
         },
 
         /**
@@ -210,7 +212,7 @@ define('game/level',
             }
 
             var position = this._getBlockPosition(coords);
-            position.y -= config.GRAVITY;
+            //position.y -= config.GRAVITY;
             this._player.setPosition(position);
         },
 
@@ -507,7 +509,7 @@ define('game/level',
         getBlockNextToPlayer: function() {
             var coords = this.getPlayerCoordinates(),
                 direction = this.getPlayer().getDirectionFacing();
-
+console.log(coords);
             if (direction === constants.DIRECTIONS.RIGHT) {
                 return this.getBlock(new Babylon.Vector2(coords.x + 1, coords.y));
             } else if (direction === constants.DIRECTIONS.LEFT) {

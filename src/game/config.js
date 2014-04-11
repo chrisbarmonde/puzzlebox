@@ -6,7 +6,9 @@ define('game/config', function() {
                 PULL_SPEED: 0.02,
                 WALK_SPEED: 0.1,
                 JUMP: {
-                    HEIGHT: 4.25,
+//                    HEIGHT: 4.25,
+//                    SPEED: 0.8
+                    HEIGHT: 30,
                     SPEED: 0.8
                 }
             },
