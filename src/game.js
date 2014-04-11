@@ -51,7 +51,8 @@ define('game',
         _createLight: function(scene) {
             var light = new Babylon.PointLight('Light', new Babylon.Vector3(0, 0, -75.0), scene);
             light.intensity = 0.5;
-            light.specular = new Babylon.Color4(0, 0, 0.5, 0.5);
+            light.diffuse = new Babylon.Color4(1, 1, 0, 1);
+            light.specular = new Babylon.Color4(0.5, 0.5, 0.5, 0.5);
             return light;
         }
     });

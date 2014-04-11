@@ -15,8 +15,9 @@ define('game/player',
         );
         this._body.material = new Babylon.StandardMaterial('PlayerMateria', level._scene);
         if (config.DEBUG) {
-            this._body.material.alpha = 0.5;
+            this._body.material.alpha = 1;
         }
+        this._body.material.diffuseTexture = new Babylon.DynamicTexture('PlayerTex', 100, level._scene, true);
 
         this._directionFacing = constants.DIRECTIONS.RIGHT;
     };
@@ -184,6 +185,17 @@ define('game/player',
                 self._level._scene.activeCamera.position.y =
                     self._body.position.y + config.CAMERA_HEIGHT;
                 self._level._scene.activeCamera.setTarget(self._body.position);
+
+
+                self._body.material.diffuseTexture.drawText(
+                    self._body.position.x.toFixed(2) + ', ' + self._body.position.y.toFixed(2),
+                    null, 20, '20px Arial', "#fff", '#000'
+                );
+
+                self._body.material.diffuseTexture.drawText(
+                    self._camera._collider.basePoint.x.toFixed(2) + ', ' + self._camera._collider.basePoint.y.toFixed(2),
+                    null, 50, '20px Arial', "#fff", null
+                );
 
                 self._level._scene.activeLight.position = self._level._scene.activeCamera.position.clone();
 

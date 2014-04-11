@@ -81,6 +81,7 @@ define('game/level',
         this._scene = scene;
         this._player = null;
         this._grid = {};
+        this._blocks = [];
     };
     _(Level.prototype).extend({
         /**
@@ -169,11 +170,54 @@ define('game/level',
                     this._grid[x] = {};
                 }
                 for (var y = 0; y <= maxY; y++) {
-                    if (!this._grid[x][y]) {
+                    if (this._grid[x][y]) {
+                        if (this._grid[x][y].movable) {
+                            this._blocks.push(this._grid[x][y]);
+                        }
+                    } else {
                         this._grid[x][y] = null;
                     }
                 }
             }
+
+            var getHex = function(color) {
+                var h = (color * 255).toString(16);
+                if (h.length === 1) {
+                    h = '0' + h;
+                }
+                return h;
+            };
+            this._scene.registerBeforeRender(function() {
+                _(self._blocks).each(function(block) {
+                    if (!block.material.diffuseTexture) {
+                        block.material.diffuseColor = block.material.emissiveColor;
+                        block.material.diffuseTexture = new Babylon.DynamicTexture(
+                            'Tex' + block.name, 100, self._scene, true
+                        );
+                    }
+
+                    var color = block.material.emissiveColor;
+                    block.material.diffuseTexture.drawText(
+                        block.position.x + ', ' + block.position.y,
+                        null, 30, '30px Arial', "#000",
+                        '#' + getHex(color.r) + getHex(color.g) + getHex(color.b)
+                    );
+
+                    if (block._positions) {
+                        var height = 60,
+                            subMesh = block.subMeshes[0];
+                        _([16, 18, 19]).each(function(pos) {
+                            var text = subMesh._lastColliderWorldVertices[pos].x.toFixed(2)
+                                + ', ' + subMesh._lastColliderWorldVertices[pos].y.toFixed(2);
+                            block.material.diffuseTexture.drawText(
+                                text, null, height, '15px Arial', "#000", null
+                            );
+                            height += 15;
+                        });
+
+                    }
+                });
+            });
         },
 
         /**
@@ -229,11 +273,13 @@ define('game/level',
                 block = Babylon.Mesh.CreateBox('Box' + name, config.BLOCK_SIZE, this._scene, true);
             block.material = new Babylon.StandardMaterial('Mat' + name, this._scene);
             block.material.emissiveColor = color;
+            //block.material.diffuseColor = color;
             block.material.backFaceCulling = false;
             block.position = this._getBlockPosition(position);
             block.checkCollisions = true;
             block.movable = movable;
             block._type = blockType;
+
 
             this._grid[position.x][position.y] = block;
             return block;
