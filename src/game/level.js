@@ -459,7 +459,6 @@ define('game/level',
 
             var coords = this.getGridCoordinates(block.position);
             this._grid[coords.x][coords.y] = block;
-            block._resetPointsArrayCache();
 
             var fallTo = null;
             if (!this.getBlock(new Babylon.Vector2(coords.x, coords.y - 1))) {
@@ -490,7 +489,6 @@ define('game/level',
                         self._grid[fallTo.x][fallTo.y] = block;
 
                         block._falling = false;
-                        block._resetPointsArrayCache();
                         self.checkForMatch(block);
                         self._scene.unregisterBeforeRender(anim);
                     } else {
