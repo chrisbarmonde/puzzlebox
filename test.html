@@ -19,6 +19,7 @@
 
     <script src="lib/hand.min-1.2.js"></script>
     <script src="lib/babylon.1.10.0.js"></script>
+    <!--<script src="lib/babylon.1.10.0-fixed.js"></script>-->
 
     <script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.6.0/underscore-min.js"></script>
 
@@ -28,6 +29,9 @@
 
 
     <script>
+
+        // This is just taken from Backbone.js. Just an easy way to extend objects
+        // and create a more standard OOP superclass/subclass system for Javascript
         Function.prototype.extend = function(protoProps, staticProps) {
             var parent = this;
             var child;
@@ -63,6 +67,8 @@
             return child;
         };
 
+
+        // Some constants
         var DIRECTIONS = {
                 UP: 1,
                 RIGHT: 2,
@@ -72,6 +78,10 @@
             WALK_SPEED = 0.1,
             JUMP_SPEED = 0.8;
 
+
+        // A slightly modified version of FreeCamera that allows us to manually
+        // input changes in direction. Most of the functions are copied straight
+        // from FreeCamera with some minor alterations.
         var PlayerCamera = BABYLON.FreeCamera.extend({
             manualInputs: function(direction) {
                 if (!this._localDirection) {
@@ -149,6 +159,8 @@
             },
 
             _collideWithWorld: function (velocity) {
+                // This was altered to remove the automatic height added to the free camera
+                // since it assumes the game is in a 'first person' mode.
                 this._oldPosition = this.position.clone();
                 this._collider.radius = this.ellipsoid;
 
@@ -163,25 +175,24 @@
 
                 if (this._diffPosition.length() > BABYLON.Engine.collisionsEpsilon) {
                     this.position.addInPlace(this._diffPosition);
-                    if (this.onCollide) {
-                        if (this._collider.collisionFound) {
-                            var mesh = (this._collider.collisionFound)
-                                ? this._collider.collidedMesh
-                                : null;
 
-                            var direction = 0;
-                            if (this._collider.normalizedVelocity.x < 0) {
-                                direction = DIRECTIONS.LEFT;
-                            } else if (this._collider.normalizedVelocity.x > 0) {
-                                direction = DIRECTIONS.RIGHT;
-                            } else if (this._collider.normalizedVelocity.y < 0) {
-                                direction = DIRECTIONS.DOWN;
-                            } else if (this._collider.normalizedVelocity.y > 0) {
-                                direction = DIRECTIONS.UP;
-                            }
+                    // This was changed so that onCollide was only called in the case that
+                    // we found an actual collision.
+                    if (this.onCollide && this._collider.collisionFound) {
+                        var mesh = this._collider.collidedMesh;
 
-                            this.onCollide(mesh, direction);
+                        var direction = 0;
+                        if (this._collider.normalizedVelocity.x < 0) {
+                            direction = DIRECTIONS.LEFT;
+                        } else if (this._collider.normalizedVelocity.x > 0) {
+                            direction = DIRECTIONS.RIGHT;
+                        } else if (this._collider.normalizedVelocity.y < 0) {
+                            direction = DIRECTIONS.DOWN;
+                        } else if (this._collider.normalizedVelocity.y > 0) {
+                            direction = DIRECTIONS.UP;
                         }
+
+                        this.onCollide(mesh, direction);
                     }
                 }
             }
@@ -197,11 +208,10 @@
         light.diffuse = new BABYLON.Color4(1, 1, 0, 1);
         light.specular = new BABYLON.Color4(0.5, 0.5, 0.5, 0.5);
 
-        var camera = new BABYLON.FreeCamera(
-            'Camera',
-            new BABYLON.Vector3(0, 25, -75.0),
-            scene
-        );
+        var camera = new BABYLON.FreeCamera('Camera', new BABYLON.Vector3(0, 25, -75.0), scene);
+
+        // Disable keys and mouse from controlling this camera directly. It'll move
+        // along as our player moves.
         camera.keysDown = camera.keysUp = camera.keysRight = camera.keysLeft = [];
         camera.angularSensibility = 10000000;
         camera.attachControl(engine.getRenderingCanvas());
@@ -214,6 +224,8 @@
             BLACK = new BABYLON.Color3(0, 0, 0),
             BLUE = new BABYLON.Color3(0, 1, 1);
 
+        // Function to create a generic block and place it in a grid
+        // pattern based on x, y coordinates
         var addBlock = function(x, y, color, movable) {
             var name = '' + x + y,
                 block = BABYLON.Mesh.CreateBox('Block' + name, BLOCK_SIZE, scene, true);
@@ -255,16 +267,19 @@
         }
 
 
-        var originalPosition = new BABYLON.Vector3(BLOCK_SIZE, BLOCK_SIZE * 2 + 2, 0);
+        // Original position is maintained so that if the user falls off the
+        // map, they can be reset to the starting location.
+        var originalPosition = new BABYLON.Vector3(BLOCK_SIZE, BLOCK_SIZE * 2 + 1, 0);
 
+        // The player camera is the free camera that collides with all the blocks and
+        // is affected by gravity and all that.
         var playerCamera = new PlayerCamera('PlayerCam', originalPosition.clone(), scene);
         playerCamera.ellipsoid = new BABYLON.Vector3(2.5, 4, 1);
         playerCamera.checkCollisions = true;
         playerCamera.applyGravity = true;
-        playerCamera.keysUp = playerCamera.keysDown = [];
-        playerCamera.keysLeft = [65]; // A
-        playerCamera.keysRight = [68]; // D
+        playerCamera.keysLeft = playerCamera.keysRight = playerCamera.keysUp = playerCamera.keysDown = [];
 
+        // This is just a mesh to show us the location of the player camera
         var playerBody = BABYLON.Mesh.CreateBox('PlayerBody', 1, scene);
         playerBody.position = originalPosition.clone();
         playerBody.scaling = new BABYLON.Vector3(5, 8, 2);
@@ -272,8 +287,7 @@
         playerBody.material.diffuseColor = new BABYLON.Color4(0.5, 0.5, 0, 0.75);
         playerBody.material.diffuseTexture = new BABYLON.DynamicTexture('PlayerTex', 100, scene, true);
 
-        var self = this,
-            moveRight = false,
+        var moveRight = false,
             moveLeft = false,
             moveUp = false,
             direction = 0,
@@ -287,6 +301,8 @@
             jumpStart = playerCamera.position.y;
         };
 
+        // Here we handle our key events. A and D move left and right. W will jump.
+        // Hitting , (<) will shift blocks left, and . (>) will shift blocks right.
         window.addEventListener('keydown', function(event) {
             switch(event.keyCode) {
                 case 65: // A
@@ -338,47 +354,6 @@
             }
         });
 
-        scene.registerBeforeRender(function() {
-            var startPosition = playerCamera.position.clone(),
-                jumpDirection = 0,
-                forceDirection = direction;
-
-            if (jumping) {
-                var jumpDiff = startPosition.y - jumpStart;
-                if (!falling && jumpDiff < 4.25) {
-                    jumpDirection = DIRECTIONS.UP;
-                } else {
-                    falling = true;
-                }
-            }
-
-            playerCamera.manualUpdate(forceDirection | jumpDirection);
-
-            // Make the player follow the camera
-            playerBody.position.x = playerCamera.position.x;
-            playerBody.position.y = playerCamera.position.y;
-
-            camera.position.x = playerBody.position.x;
-            camera.position.y = playerBody.position.y + 25;
-            scene.activeCamera.setTarget(playerBody.position);
-
-            playerBody.material.diffuseTexture.drawText(
-                playerBody.position.x.toFixed(2) + ', ' + playerBody.position.y.toFixed(2),
-                null, 20, '20px Arial', "#fff", '#000'
-            );
-
-            playerBody.material.diffuseTexture.drawText(
-                playerCamera._collider.basePoint.x.toFixed(2) + ', ' + playerCamera._collider.basePoint.y.toFixed(2),
-                null, 50, '20px Arial', "#fff", null
-            );
-
-            light.position = camera.position.clone();
-
-            if (playerCamera.position.y < -20) {
-                playerCamera.position = originalPosition.clone();
-                jumping = falling = false;
-            }
-        });
 
         playerCamera.onCollide = function(mesh, direction) {
             if (mesh) {
@@ -401,7 +376,54 @@
             }
             return h;
         };
+
         scene.registerBeforeRender(function() {
+            var startPosition = playerCamera.position.clone(),
+                jumpDirection = 0;
+
+            if (jumping) {
+                var jumpDiff = startPosition.y - jumpStart;
+                if (!falling && jumpDiff < 4.25) {
+                    jumpDirection = DIRECTIONS.UP;
+                } else {
+                    falling = true;
+                }
+            }
+
+            // Manually update the position of our player camera based on
+            // which directions the user is moving on the 2D plane
+            playerCamera.manualUpdate(direction | jumpDirection);
+
+            // Make the player follow the camera
+            playerBody.position.x = playerCamera.position.x;
+            playerBody.position.y = playerCamera.position.y;
+
+            // Make our activeCamera follow the player
+            camera.position.x = playerBody.position.x;
+            camera.position.y = playerBody.position.y + 25;
+            camera.setTarget(playerBody.position);
+
+            // Light also follows the activeCamera
+            light.position = camera.position.clone();
+
+            // If we've fallen too far, reset the user
+            if (playerCamera.position.y < -20) {
+                playerCamera.position = originalPosition.clone();
+                jumping = falling = false;
+            }
+
+            // Draw our positions
+            playerBody.material.diffuseTexture.drawText(
+                playerBody.position.x.toFixed(2) + ', ' + playerBody.position.y.toFixed(2),
+                null, 20, '20px Arial', "#fff", '#000'
+            );
+
+            playerBody.material.diffuseTexture.drawText(
+                playerCamera._collider.basePoint.x.toFixed(2) + ', ' + playerCamera._collider.basePoint.y.toFixed(2),
+                null, 50, '20px Arial', "#fff", null
+            );
+
+            // Update the text on our blocks
             for (var i = 0; i < blocks.length; i++) {
                 var block = blocks[i];
 
@@ -427,8 +449,6 @@
                 }
             }
         });
-
-
 
         engine.runRenderLoop(function() {
             scene.render();
