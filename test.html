@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PUZZLE BOX</title>
+
+    <style>
+        html, body, canvas {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+
+    <script>
+        var require = {
+            baseUrl: './src'
+        };
+    </script>
+
+
+    <script src="lib/hand.min-1.2.js"></script>
+    <script src="lib/babylon.1.10.0.js"></script>
+
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.6.0/underscore-min.js"></script>
+
+</head>
+<body>
+    <canvas id="game" width="1280" height="720"></canvas>
+
+
+    <script>
+        Function.prototype.extend = function(protoProps, staticProps) {
+            var parent = this;
+            var child;
+
+            // The constructor function for the new subclass is either defined by you
+            // (the "constructor" property in your `extend` definition), or defaulted
+            // by us to simply call the parent's constructor.
+            if (protoProps && _.has(protoProps, 'constructor')) {
+                child = protoProps.constructor;
+            } else {
+                child = function(){ return parent.apply(this, arguments); };
+            }
+
+            // Add static properties to the constructor function, if supplied.
+            _.extend(child, parent, staticProps);
+
+            // Set the prototype chain to inherit from `parent`, without calling
+            // `parent`'s constructor function.
+            var Surrogate = function(){ this.constructor = child; };
+            Surrogate.prototype = parent.prototype;
+            child.prototype = new Surrogate();
+
+            // Add prototype properties (instance properties) to the subclass,
+            // if supplied.
+            if (protoProps) {
+                _.extend(child.prototype, protoProps);
+            }
+
+            // Set a convenience property in case the parent's prototype is needed
+            // later.
+            child.__super__ = parent.prototype;
+
+            return child;
+        };
+
+        var DIRECTIONS = {
+                UP: 1,
+                RIGHT: 2,
+                DOWN: 4,
+                LEFT: 8
+            },
+            WALK_SPEED = 0.1,
+            JUMP_SPEED = 0.8;
+
+        var PlayerCamera = BABYLON.FreeCamera.extend({
+            manualInputs: function(direction) {
+                if (!this._localDirection) {
+                    this._localDirection = BABYLON.Vector3.Zero();
+                    this._transformedDirection = BABYLON.Vector3.Zero();
+                }
+
+                if (direction === 0) {
+                    return;
+                }
+
+                //var speed = this._computeLocalCameraSpeed();
+                var movementSpeed = WALK_SPEED;
+
+                var x = 0, y = 0, z = 0;
+                if (direction & DIRECTIONS.RIGHT) {
+                    x = movementSpeed;
+                } else if (direction & DIRECTIONS.LEFT) {
+                    x = -movementSpeed;
+                }
+                if (direction & DIRECTIONS.UP) {
+                    y = JUMP_SPEED;
+                } else if (direction & DIRECTIONS.DOWN) {
+                    y = -JUMP_SPEED;
+                }
+
+                this._localDirection.copyFromFloats(x, y, z);
+
+                this.getViewMatrix().invertToRef(this._cameraTransformMatrix);
+                BABYLON.Vector3.TransformNormalToRef(
+                    this._localDirection,
+                    this._cameraTransformMatrix,
+                    this._transformedDirection
+                );
+                this.cameraDirection.addInPlace(this._transformedDirection);
+            },
+
+            manualUpdate: function(direction) {
+                this.manualInputs(direction);
+
+                var needToMove = (this._needMoveForGravity
+                    || Math.abs(this.cameraDirection.x) > 0
+                    || Math.abs(this.cameraDirection.y) > 0
+                    || Math.abs(this.cameraDirection.z) > 0);
+
+                // Move
+                if (needToMove) {
+                    if (this.checkCollisions && this._scene.collisionsEnabled) {
+                        this._collideWithWorld(this.cameraDirection);
+
+                        if (this.applyGravity) {
+                            var oldPosition = this.position;
+                            this._collideWithWorld(this._scene.gravity);
+                            this._needMoveForGravity =
+                                (BABYLON.Vector3.DistanceSquared(oldPosition, this.position) !== 0);
+                        }
+                    } else {
+                        this.position.addInPlace(this.cameraDirection);
+                    }
+
+                    if (Math.abs(this.cameraDirection.x) < BABYLON.Engine.epsilon) {
+                        this.cameraDirection.x = 0;
+                    }
+
+                    if (Math.abs(this.cameraDirection.y) < BABYLON.Engine.epsilon) {
+                        this.cameraDirection.y = 0;
+                    }
+
+                    if (Math.abs(this.cameraDirection.z) < BABYLON.Engine.epsilon) {
+                        this.cameraDirection.z = 0;
+                    }
+
+                    this.cameraDirection.scaleInPlace(this.inertia);
+                }
+            },
+
+            _collideWithWorld: function (velocity) {
+                this._oldPosition = this.position.clone();
+                this._collider.radius = this.ellipsoid;
+
+                this._scene._getNewPosition(
+                    this._oldPosition,
+                    velocity,
+                    this._collider,
+                    3,
+                    this._newPosition
+                );
+                this._newPosition.subtractToRef(this._oldPosition, this._diffPosition);
+
+                if (this._diffPosition.length() > BABYLON.Engine.collisionsEpsilon) {
+                    this.position.addInPlace(this._diffPosition);
+                    if (this.onCollide) {
+                        if (this._collider.collisionFound) {
+                            var mesh = (this._collider.collisionFound)
+                                ? this._collider.collidedMesh
+                                : null;
+
+                            var direction = 0;
+                            if (this._collider.normalizedVelocity.x < 0) {
+                                direction = DIRECTIONS.LEFT;
+                            } else if (this._collider.normalizedVelocity.x > 0) {
+                                direction = DIRECTIONS.RIGHT;
+                            } else if (this._collider.normalizedVelocity.y < 0) {
+                                direction = DIRECTIONS.DOWN;
+                            } else if (this._collider.normalizedVelocity.y > 0) {
+                                direction = DIRECTIONS.UP;
+                            }
+
+                            this.onCollide(mesh, direction);
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+
+    <script>
+        var engine = new BABYLON.Engine(document.getElementById('game'), true);
+        var scene = new BABYLON.Scene(engine);
+
+        var light = new BABYLON.PointLight('Light', new BABYLON.Vector3(0, 0, -75.0), scene);
+        light.intensity = 0.5;
+        light.diffuse = new BABYLON.Color4(1, 1, 0, 1);
+        light.specular = new BABYLON.Color4(0.5, 0.5, 0.5, 0.5);
+
+        var camera = new BABYLON.FreeCamera(
+            'Camera',
+            new BABYLON.Vector3(0, 25, -75.0),
+            scene
+        );
+        camera.keysDown = camera.keysUp = camera.keysRight = camera.keysLeft = [];
+        camera.angularSensibility = 10000000;
+        camera.attachControl(engine.getRenderingCanvas());
+
+        scene.gravity = new BABYLON.Vector3(0, -2.0, 0);
+        scene.collisionsEnabled = true;
+
+
+        var BLOCK_SIZE = 10,
+            BLACK = new BABYLON.Color3(0, 0, 0),
+            BLUE = new BABYLON.Color3(0, 1, 1);
+
+        var addBlock = function(x, y, color, movable) {
+            var name = '' + x + y,
+                block = BABYLON.Mesh.CreateBox('Block' + name, BLOCK_SIZE, scene, true);
+            block.material = new BABYLON.StandardMaterial('Mat' + name, scene);
+            block.material.emissiveColor = color;
+            block.material.backFaceCulling = false;
+            block.position = new BABYLON.Vector3(x * BLOCK_SIZE, y * BLOCK_SIZE, 0);
+            block.checkCollisions = true;
+
+            if (movable) {
+                blocks.push(block);
+
+                block.material.diffuseColor = block.material.emissiveColor;
+                block.material.diffuseTexture = new BABYLON.DynamicTexture(
+                    'Tex' + block.name, 100, scene, true
+                );
+            }
+        };
+
+
+        var blocks = [],
+            positions = [
+                [1, 1, BLACK, false],
+                [2, 1, BLACK, false],
+                [3, 1, BLACK, false],
+                [4, 1, BLACK, false],
+                [5, 1, BLACK, false],
+                [6, 1, BLACK, false],
+                [7, 1, BLACK, false],
+                [8, 1, BLACK, false],
+
+                [3, 2, BLUE, true],
+                [4, 2, BLUE, true],
+                [6, 2, BLUE, true]
+            ];
+
+        for (var i = 0; i < positions.length; i++) {
+            addBlock.apply(addBlock, positions[i]);
+        }
+
+
+        var originalPosition = new BABYLON.Vector3(BLOCK_SIZE, BLOCK_SIZE * 2 + 2, 0);
+
+        var playerCamera = new PlayerCamera('PlayerCam', originalPosition.clone(), scene);
+        playerCamera.ellipsoid = new BABYLON.Vector3(2.5, 4, 1);
+        playerCamera.checkCollisions = true;
+        playerCamera.applyGravity = true;
+        playerCamera.keysUp = playerCamera.keysDown = [];
+        playerCamera.keysLeft = [65]; // A
+        playerCamera.keysRight = [68]; // D
+
+        var playerBody = BABYLON.Mesh.CreateBox('PlayerBody', 1, scene);
+        playerBody.position = originalPosition.clone();
+        playerBody.scaling = new BABYLON.Vector3(5, 8, 2);
+        playerBody.material = new BABYLON.StandardMaterial('PlayerMat', scene);
+        playerBody.material.diffuseColor = new BABYLON.Color4(0.5, 0.5, 0, 0.75);
+        playerBody.material.diffuseTexture = new BABYLON.DynamicTexture('PlayerTex', 100, scene, true);
+
+        var self = this,
+            moveRight = false,
+            moveLeft = false,
+            moveUp = false,
+            direction = 0,
+            jumping = false,
+            falling = false,
+            jumpStart = 0;
+
+        var startJump = function() {
+            jumping = true;
+            falling = false;
+            jumpStart = playerCamera.position.y;
+        };
+
+        window.addEventListener('keydown', function(event) {
+            switch(event.keyCode) {
+                case 65: // A
+                    moveLeft = true;
+                    direction = DIRECTIONS.LEFT;
+                    break;
+
+                case 68: // D
+                    moveRight = true;
+                    direction = DIRECTIONS.RIGHT;
+                    break;
+
+                case 87: // W
+                    moveUp = true;
+                    if (!jumping && !falling) {
+                        startJump();
+                    }
+                    break;
+
+                case 190: // period
+                    _(blocks).each(function(block) {
+                        block.position.x += BLOCK_SIZE;
+                    });
+                    break;
+
+                case 188: // comma
+                    _(blocks).each(function(block) {
+                        block.position.x -= BLOCK_SIZE;
+                    });
+                    break;
+            }
+        });
+
+        window.addEventListener('keyup', function(event) {
+            switch(event.keyCode) {
+                case 65:
+                    moveLeft = false;
+                    direction = (moveRight) ? DIRECTIONS.RIGHT : 0;
+                    break;
+
+                case 68:
+                    moveRight = false;
+                    direction = (moveLeft) ? DIRECTIONS.LEFT : 0;
+                    break;
+
+                case 87:
+                    moveUp = false;
+                    break;
+            }
+        });
+
+        scene.registerBeforeRender(function() {
+            var startPosition = playerCamera.position.clone(),
+                jumpDirection = 0,
+                forceDirection = direction;
+
+            if (jumping) {
+                var jumpDiff = startPosition.y - jumpStart;
+                if (!falling && jumpDiff < 4.25) {
+                    jumpDirection = DIRECTIONS.UP;
+                } else {
+                    falling = true;
+                }
+            }
+
+            playerCamera.manualUpdate(forceDirection | jumpDirection);
+
+            // Make the player follow the camera
+            playerBody.position.x = playerCamera.position.x;
+            playerBody.position.y = playerCamera.position.y;
+
+            camera.position.x = playerBody.position.x;
+            camera.position.y = playerBody.position.y + 25;
+            scene.activeCamera.setTarget(playerBody.position);
+
+            playerBody.material.diffuseTexture.drawText(
+                playerBody.position.x.toFixed(2) + ', ' + playerBody.position.y.toFixed(2),
+                null, 20, '20px Arial', "#fff", '#000'
+            );
+
+            playerBody.material.diffuseTexture.drawText(
+                playerCamera._collider.basePoint.x.toFixed(2) + ', ' + playerCamera._collider.basePoint.y.toFixed(2),
+                null, 50, '20px Arial', "#fff", null
+            );
+
+            light.position = camera.position.clone();
+
+            if (playerCamera.position.y < -20) {
+                playerCamera.position = originalPosition.clone();
+                jumping = falling = false;
+            }
+        });
+
+        playerCamera.onCollide = function(mesh, direction) {
+            if (mesh) {
+                if (jumping && direction === DIRECTIONS.UP) {
+                    falling = true;
+                } else if (falling) {
+                    jumping = falling = false;
+                    if (moveUp) {
+                        startJump();
+                    }
+                }
+            }
+        };
+
+
+        var getHex = function(color) {
+            var h = (color * 255).toString(16);
+            if (h.length === 1) {
+                h = '0' + h;
+            }
+            return h;
+        };
+        scene.registerBeforeRender(function() {
+            for (var i = 0; i < blocks.length; i++) {
+                var block = blocks[i];
+
+                var color = block.material.diffuseColor;
+                block.material.diffuseTexture.drawText(
+                    block.position.x + ', ' + block.position.y,
+                    null, 30, '30px Arial', "#000",
+                    '#' + getHex(color.r) + getHex(color.g) + getHex(color.b)
+                );
+
+                if (block._positions) {
+                    var height = 60,
+                        subMesh = block.subMeshes[0];
+                    // Top triangle
+                    _([16, 18, 19]).each(function(pos) {
+                        var text = subMesh._lastColliderWorldVertices[pos].x.toFixed(2)
+                            + ', ' + subMesh._lastColliderWorldVertices[pos].y.toFixed(2);
+                        block.material.diffuseTexture.drawText(
+                            text, null, height, '15px Arial', "#000", null
+                        );
+                        height += 15;
+                    });
+                }
+            }
+        });
+
+
+
+        engine.runRenderLoop(function() {
+            scene.render();
+        });
+    </script>
+</body>
+</html>
