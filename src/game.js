@@ -3,6 +3,7 @@ define('game',
     function(config, Babylon, _) {
     var PuzzleBox = function(canvas) {
         var engine = new Babylon.Engine(canvas, true);
+        engine.renderEvenInBackground = false;
 
         window.addEventListener('resize', function() {
             engine.resize();

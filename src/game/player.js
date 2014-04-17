@@ -159,6 +159,18 @@ define('game/player',
                 self._body.position.x = self._camera.position.x;
                 self._body.position.y = self._camera.position.y;
 
+                self._level._scene.activeCamera.position.x = self._body.position.x;
+                self._level._scene.activeCamera.position.y =
+                    self._body.position.y + config.CAMERA_HEIGHT;
+                self._level._scene.activeCamera.setTarget(self._body.position);
+
+                self._level._scene.activeLight.position = self._level._scene.activeCamera.position.clone();
+
+                if (self._camera.position.y < config.PLAYER.RESET_HEIGHT) {
+                    self._camera.position = self.originalPosition.clone();
+                    jumping = falling = false;
+                }
+
                 // Show our ellipsoid
                 if (config.DEBUG) {
                     if (!self.ellipsoid) {
@@ -179,35 +191,23 @@ define('game/player',
                     }
                     self.ellipsoid.position.x = self._camera.position.x;
                     self.ellipsoid.position.y = self._camera.position.y;
-                }
-
-                self._level._scene.activeCamera.position.x = self._body.position.x;
-                self._level._scene.activeCamera.position.y =
-                    self._body.position.y + config.CAMERA_HEIGHT;
-                self._level._scene.activeCamera.setTarget(self._body.position);
 
 
-                self._body.material.diffuseTexture.drawText(
-                    self._body.position.x.toFixed(2) + ', ' + self._body.position.y.toFixed(2),
-                    null, 20, '20px Arial', "#fff", '#000'
-                );
+                    self._body.material.diffuseTexture.drawText(
+                        self._body.position.x.toFixed(2) + ', ' + self._body.position.y.toFixed(2),
+                        null, 20, '20px Arial', "#fff", '#000'
+                    );
 
-                self._body.material.diffuseTexture.drawText(
-                    self._camera._collider.basePoint.x.toFixed(2) + ', ' + self._camera._collider.basePoint.y.toFixed(2),
-                    null, 50, '20px Arial', "#fff", null
-                );
-
-                self._level._scene.activeLight.position = self._level._scene.activeCamera.position.clone();
-
-                if (self._camera.position.y < config.PLAYER.RESET_HEIGHT) {
-                    self._camera.position = self.originalPosition.clone();
-                    jumping = falling = false;
+                    self._body.material.diffuseTexture.drawText(
+                        self._camera._collider.basePoint.x.toFixed(2) + ', ' + self._camera._collider.basePoint.y.toFixed(2),
+                        null, 50, '20px Arial', "#fff", null
+                    );
                 }
             });
 
             this._camera.onCollide = function(mesh, direction) {
                 if (mesh) {
-                    if (jumping && direction === constants.DIRECTIONS.UP) {
+                    if (jumping && (direction & constants.DIRECTIONS.UP)) {
                         falling = true;
                     } else if (falling) {
                         jumping = falling = false;

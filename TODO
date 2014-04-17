@@ -4,7 +4,10 @@ Features
 * Sounds?
 * Level selector
 * Move levels to flat file format
+* More accurate speed / gravity true to the game
+* More accurate character size
 
 Bugs
-* Can jump if falling action not initiated from a jump (Need to check gravity calcs for downward motion)
+* Can jump if falling action not initiated from a jump (Need to check gravity calcs for downward motion)`
 * Gravity randomly stops working while falling infinitely
+* getLevel() / getScene() instead of _level / _scene

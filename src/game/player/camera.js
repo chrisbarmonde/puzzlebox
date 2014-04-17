@@ -117,10 +117,12 @@ define('game/player/camera',
                             direction = constants.DIRECTIONS.LEFT;
                         } else if (this._collider.normalizedVelocity.x > 0) {
                             direction = constants.DIRECTIONS.RIGHT;
-                        } else if (this._collider.normalizedVelocity.y < 0) {
-                            direction = constants.DIRECTIONS.DOWN;
+                        }
+
+                        if (this._collider.normalizedVelocity.y < 0) {
+                            direction |= constants.DIRECTIONS.DOWN;
                         } else if (this._collider.normalizedVelocity.y > 0) {
-                            direction = constants.DIRECTIONS.UP;
+                            direction |= constants.DIRECTIONS.UP;
                         }
 
                         this.onCollide(mesh, direction);
