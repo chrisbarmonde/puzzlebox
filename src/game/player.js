@@ -23,8 +23,8 @@ define('game/player',
             );
             this._body.material =
                 new Babylon.StandardMaterial('PlayerMateria', this._level._scene);
-            this._body.material.diffuseTexture =
-                new Babylon.DynamicTexture('PlayerTex', 100, this._level._scene, true);
+            this._body.material.diffuseColor = new Babylon.Color3(0.5, 0.5, 0.5);
+            this._body.material.alpha = 1;
         },
 
         setupKeyboard: function() {

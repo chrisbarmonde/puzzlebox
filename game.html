@@ -15,15 +15,18 @@
             baseUrl: './src',
             paths: {
                 text: '../lib/require.text'
-            },
-            map: {
+            }
+        };
+
+        if (window.location.search.match(/^[?]debug/)) {
+            require.map = {
                 'game': {
                     'game/level': 'debug/game/level',
                     'game/player': 'debug/game/player',
                     'game/player/camera': 'debug/game/player/camera'
                 }
             }
-        };
+        }
     </script>
 
 

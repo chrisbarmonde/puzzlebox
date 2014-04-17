@@ -5,6 +5,9 @@ define('debug/game/player',
     var DebugPlayer = Player.extend({
         setupBody: function() {
             Player.prototype.setupBody.apply(this, arguments);
+
+            this._body.material.diffuseTexture =
+                new Babylon.DynamicTexture('PlayerTex', 100, this._level._scene, true);
             this._body.material.alpha = 0.75;
         },
 
@@ -30,7 +33,6 @@ define('debug/game/player',
             }
             this.ellipsoid.position.x = this._camera.position.x;
             this.ellipsoid.position.y = this._camera.position.y;
-
 
             this._body.material.diffuseTexture.drawText(
                 this._body.position.x.toFixed(2) + ', ' + this._body.position.y.toFixed(2),
