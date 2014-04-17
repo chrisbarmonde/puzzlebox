@@ -1,6 +1,6 @@
 define('game',
-    ['game/config', 'babylon', 'underscore'],
-    function(config, Babylon, _) {
+    ['game/config', 'game/level', 'babylon', 'underscore'],
+    function(config, Level, Babylon, _) {
     var PuzzleBox = function(canvas) {
         var engine = new Babylon.Engine(canvas, true);
         engine.renderEvenInBackground = false;
@@ -11,10 +11,24 @@ define('game',
 
         this._canvas = canvas;
         this._engine = engine;
+        this._activeScene = null;
     };
     _(PuzzleBox.prototype).extend({
         getEngine: function() {
             return this._engine;
+        },
+
+        loadSceneFromFile: function(filePath) {
+            if (this._activeScene) {
+                this._activeScene.dispose();
+            }
+
+            var self = this;
+            require(['text!' + filePath], function(gridData) {
+                self._activeScene = self.createScene(function(scene) {
+                    (new Level(scene)).setupGrid(gridData);
+                });
+            });
         },
 
         createScene: function(onCreate) {

@@ -6,22 +6,27 @@ define('game/player',
 
     var Player = function(level) {
         this._level = level;
-
-        this._body = Babylon.Mesh.CreateBox('PlayerBody', 1, level._scene);
-        this._body.scaling = new Babylon.Vector3(
-            config.PLAYER.SIZE.WIDTH,
-            config.PLAYER.SIZE.HEIGHT,
-            config.PLAYER.SIZE.LENGTH
-        );
-        this._body.material = new Babylon.StandardMaterial('PlayerMateria', level._scene);
-        if (config.DEBUG) {
-            this._body.material.alpha = 1;
-        }
-        this._body.material.diffuseTexture = new Babylon.DynamicTexture('PlayerTex', 100, level._scene, true);
-
         this._directionFacing = constants.DIRECTIONS.RIGHT;
+
+        this.setupBody();
     };
     _(Player.prototype).extend({
+        /**
+         * Sets up the 'body' that represents our player
+         */
+        setupBody: function() {
+            this._body = Babylon.Mesh.CreateBox('PlayerBody', 1, this._level._scene);
+            this._body.scaling = new Babylon.Vector3(
+                config.PLAYER.SIZE.WIDTH,
+                config.PLAYER.SIZE.HEIGHT,
+                config.PLAYER.SIZE.LENGTH
+            );
+            this._body.material =
+                new Babylon.StandardMaterial('PlayerMateria', this._level._scene);
+            this._body.material.diffuseTexture =
+                new Babylon.DynamicTexture('PlayerTex', 100, this._level._scene, true);
+        },
+
         setupKeyboard: function() {
             var self = this,
                 moveRight = false,
@@ -155,53 +160,11 @@ define('game/player',
                     self._camera.manualUpdate(forceDirection | jumpDirection, blockAnimating);
                 }
 
-                // Make the player follow the camera
-                self._body.position.x = self._camera.position.x;
-                self._body.position.y = self._camera.position.y;
-
-                self._level._scene.activeCamera.position.x = self._body.position.x;
-                self._level._scene.activeCamera.position.y =
-                    self._body.position.y + config.CAMERA_HEIGHT;
-                self._level._scene.activeCamera.setTarget(self._body.position);
-
-                self._level._scene.activeLight.position = self._level._scene.activeCamera.position.clone();
+                self._syncPositions();
 
                 if (self._camera.position.y < config.PLAYER.RESET_HEIGHT) {
                     self._camera.position = self.originalPosition.clone();
                     jumping = falling = false;
-                }
-
-                // Show our ellipsoid
-                if (config.DEBUG) {
-                    if (!self.ellipsoid) {
-                        self.ellipsoid = Babylon.Mesh.CreateSphere(
-                            'Ellip', 20, 1, self._level._scene);
-                        self.ellipsoid.scaling = new Babylon.Vector3(
-                            config.PLAYER.SIZE.WIDTH,
-                            config.PLAYER.SIZE.HEIGHT,
-                            config.PLAYER.SIZE.LENGTH
-                        );
-
-                        self.ellipsoid.material = new Babylon.StandardMaterial(
-                            'MatEllip', self._level._scene);
-                        self.ellipsoid.material.diffuseColor =
-                            self.ellipsoid.material.specularColor =
-                            self.ellipsoid.material.emissiveColor =
-                                new Babylon.Color4(1, 1, 1, 0.5);
-                    }
-                    self.ellipsoid.position.x = self._camera.position.x;
-                    self.ellipsoid.position.y = self._camera.position.y;
-
-
-                    self._body.material.diffuseTexture.drawText(
-                        self._body.position.x.toFixed(2) + ', ' + self._body.position.y.toFixed(2),
-                        null, 20, '20px Arial', "#fff", '#000'
-                    );
-
-                    self._body.material.diffuseTexture.drawText(
-                        self._camera._collider.basePoint.x.toFixed(2) + ', ' + self._camera._collider.basePoint.y.toFixed(2),
-                        null, 50, '20px Arial', "#fff", null
-                    );
                 }
             });
 
@@ -217,6 +180,26 @@ define('game/player',
                     }
                 }
             };
+        },
+
+        /**
+         * Sync our body and camera positions so everything lines up as the
+         * player moves around
+         *
+         * @private
+         */
+        _syncPositions: function() {
+            // Make the player follow the camera
+            this._body.position.x = this._camera.position.x;
+            this._body.position.y = this._camera.position.y;
+
+            this._level._scene.activeCamera.position.x = this._body.position.x;
+            this._level._scene.activeCamera.position.y =
+                this._body.position.y + config.CAMERA_HEIGHT;
+            this._level._scene.activeCamera.setTarget(this._body.position);
+
+            this._level._scene.activeLight.position =
+                this._level._scene.activeCamera.position.clone();
         },
 
         /**

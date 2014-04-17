@@ -12,7 +12,17 @@
 
     <script>
         var require = {
-            baseUrl: './src'
+            baseUrl: './src',
+            paths: {
+                text: '../lib/require.text'
+            },
+            map: {
+                'game': {
+                    'game/level': 'debug/game/level',
+                    'game/player': 'debug/game/player',
+                    'game/player/camera': 'debug/game/player/camera'
+                }
+            }
         };
     </script>
 
@@ -20,17 +30,28 @@
     <script src="lib/hand.min-1.2.js"></script>
     <script src="lib/babylon.1.10.0.js"></script>
 
-    <script src="//cdnjs.cloudflare.com/ajax/libs/require.js/2.1.11/require.min.js"></script>
+    <script src="lib/require.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.6.0/underscore-min.js"></script>
 </head>
 <body>
+    <select id="level-selector">
+        <option value="">Select Level</option>
+        <option value="levels/WA5/1.pbx">Wild ARMS 5: Puzzle Box 1</option>
+    </select>
+
     <canvas id="game" width="1280" height="720"></canvas>
 
     <script>
         require(['util/bootstrap'], function() {
-            require(['game', 'levels/1'], function(game, level1) {
+            require(['game'], function(game) {
                 var puzzleBox = game.create(document.getElementById('game'));
-                level1(puzzleBox);
+
+                var levelSelector = document.getElementById('level-selector');
+                levelSelector.addEventListener('change', function() {
+                    if (levelSelector.value) {
+                        puzzleBox.loadSceneFromFile(levelSelector.value);
+                    }
+                });
             });
         });
     </script>

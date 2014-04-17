@@ -97,20 +97,7 @@ define('game/player/camera',
                 this.position.addInPlace(this._diffPosition);
                 if (this.onCollide) {
                     if (this._collider.collisionFound) {
-                        var mesh = (this._collider.collisionFound)
-                            ? this._collider.collidedMesh
-                            : null;
-
-                        // Highlight the mesh we collided with
-                        if (config.DEBUG) {
-                            if (this.hMesh) {
-                                this.hMesh.material.emissiveColor = this.hMesh.material.oColor;
-                            }
-
-                            this.hMesh = mesh;
-                            this.hMesh.material.oColor = this.hMesh.material.emissiveColor;
-                            this.hMesh.material.emissiveColor = new Babylon.Color4(1, 1, 1, 0.25);
-                        }
+                        var mesh = this._getCollidedMesh();
 
                         var direction = 0;
                         if (this._collider.normalizedVelocity.x < 0) {
@@ -129,6 +116,16 @@ define('game/player/camera',
                     }
                 }
             }
+        },
+
+        /**
+         * Return the mesh we collided with
+         *
+         * @returns {Babylon.Mesh}
+         * @private
+         */
+        _getCollidedMesh: function() {
+            return this._collider.collidedMesh;
         }
     });
 

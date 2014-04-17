@@ -85,31 +85,16 @@ define('game/level',
     };
     _(Level.prototype).extend({
         /**
-         * Returns the grid of blocks formatted as x-y axes in rows.
-         * Example:
-         * [
-         *   '   R',
-         *   '  PPP'
-         * ]
-         *
-         * This would create three platform blocks at coords (1,3), (1,4),
-         * and (1,5) with one red block at (2,4)
-         *
-         * @returns {string[]}
-         */
-        getGrid: function() {
-            throw "You must create a grid";
-        },
-
-        /**
          * Builds all our necessary Babylon objects based on our grid
+         *
+         * @param {string} gridData - String representation of the level's grid
          */
-        setupGrid: function() {
+        setupGrid: function(gridData) {
             var maxX = 0,
                 maxY = 0,
                 hasPlayer = false,
                 self = this,
-                grid = this.getGrid();
+                grid = gridData.split('\n');
 
             grid.reverse();
             _(grid).each(function(row, y) {
@@ -178,47 +163,6 @@ define('game/level',
                         this._grid[x][y] = null;
                     }
                 }
-            }
-
-            if (config.DEBUG) {
-                var getHex = function(color) {
-                    var h = (color * 255).toString(16);
-                    if (h.length === 1) {
-                        h = '0' + h;
-                    }
-                    return h;
-                };
-                this._scene.registerBeforeRender(function() {
-                    _(self._blocks).each(function(block) {
-                        if (!block.material.diffuseTexture) {
-                            block.material.diffuseColor = block.material.emissiveColor;
-                            block.material.diffuseTexture = new Babylon.DynamicTexture(
-                                'Tex' + block.name, 100, self._scene, true
-                            );
-                        }
-
-                        var color = block.material.emissiveColor;
-                        block.material.diffuseTexture.drawText(
-                            block.position.x + ', ' + block.position.y,
-                            null, 30, '30px Arial', "#000",
-                            '#' + getHex(color.r) + getHex(color.g) + getHex(color.b)
-                        );
-
-                        if (block._positions) {
-                            var height = 60,
-                                subMesh = block.subMeshes[0];
-                            _([16, 18, 19]).each(function(pos) {
-                                var text = subMesh._lastColliderWorldVertices[pos].x.toFixed(2)
-                                    + ', ' + subMesh._lastColliderWorldVertices[pos].y.toFixed(2);
-                                block.material.diffuseTexture.drawText(
-                                    text, null, height, '15px Arial', "#000", null
-                                );
-                                height += 15;
-                            });
-
-                        }
-                    });
-                });
             }
         },
 
