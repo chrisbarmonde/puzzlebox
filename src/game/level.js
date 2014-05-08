@@ -87,14 +87,19 @@ define('game/level',
         /**
          * Builds all our necessary Babylon objects based on our grid
          *
-         * @param {string} gridData - String representation of the level's grid
+         * @param {(string|string[])} gridData - String or array representation
+         *  of the level's grid
          */
         setupGrid: function(gridData) {
+            if (!gridData) {
+                throw "No grid data";
+            }
+
             var maxX = 0,
                 maxY = 0,
                 hasPlayer = false,
                 self = this,
-                grid = gridData.split('\n');
+                grid = (_.isString(gridData)) ? gridData.split('\n') : gridData;
 
             grid.reverse();
             _(grid).each(function(row, y) {

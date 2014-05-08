@@ -4,14 +4,10 @@ define('spec/game/level',
     function(Level, constants, config, Player,
              util, Babylon, jasmine) {
 
-    var FakeLevel = Level.extend({
-        getGrid: function() {
-            return [
-                '   RS',
-                '  PPP'
-            ];
-        }
-    });
+    var defaultGrid = [
+        '   RS',
+        '  PPP'
+    ];
 
     describe('A Level', function() {
         util.createCanvas();
@@ -19,8 +15,8 @@ define('spec/game/level',
         beforeEach(function() {
             this.engine = new Babylon.Engine(this.canvas);
             this.scene = new Babylon.Scene(this.engine);
-            this.level = new FakeLevel(this.scene);
-            this.level.setupGrid();
+            this.level = new Level(this.scene);
+            this.level.setupGrid(_.clone(defaultGrid));
         });
 
         afterEach(function() {
@@ -40,25 +36,23 @@ define('spec/game/level',
             });
 
             it('that is required to have a start block', function() {
-                var level = new FakeLevel(this.scene);
-                level.getGrid = function() {
-                    return [' Y'];
-                };
-                expect(level.setupGrid).toThrow();
+                var level = new Level(this.scene);
+                expect(function() {
+                    level.setupGrid(' Y');
+                }).toThrow();
             });
 
             it("that doesn't allow more than one start block", function() {
-                var level = new FakeLevel(this.scene);
-                level.getGrid = function() {
-                    return [' S    S'];
-                };
-                expect(level.setupGrid).toThrow();
+                var level = new Level(this.scene);
+                expect(function() {
+                    level.setupGrid(' S    S');
+                }).toThrow();
             });
 
             it('that is automatically generated', function() {
-                var level = new FakeLevel(this.scene),
-                    grid = level.getGrid().reverse();
-                level.setupGrid();
+                var level = new Level(this.scene),
+                    grid = _.clone(defaultGrid).reverse();
+                level.setupGrid(_.clone(defaultGrid));
                 _(level._grid).each(function(row, y) {
                     _(row).each(function(block, x) {
                         if (grid[x] && grid[x][y] !== ' ') {
@@ -78,15 +72,12 @@ define('spec/game/level',
 
             describe('that contains blocks', function() {
                 beforeEach(function() {
-                    this.level = new FakeLevel(this.scene);
-                    this.level.getGrid = function() {
-                        return [
-                            '    S',
-                            '  P T P',
-                            ' R B G Y'
-                        ];
-                    };
-                    this.level.setupGrid();
+                    this.level = new Level(this.scene);
+                    this.level.setupGrid([
+                        '    S',
+                        '  P T P',
+                        ' R B G Y'
+                    ]);
                 });
 
                 it('of various colors', function() {
@@ -168,7 +159,7 @@ define('spec/game/level',
             });
 
             it('that adjusts the initial block positions based on the block size', function() {
-                var level = new FakeLevel(this.scene),
+                var level = new Level(this.scene),
                     position = level._getBlockPosition(new Babylon.Vector2(3, 5));
                 expect(position.x).toBe(config.BLOCK_SIZE * 3);
                 expect(position.y).toBe(config.BLOCK_SIZE * 5);
@@ -178,7 +169,7 @@ define('spec/game/level',
             it('that places the player above the start block', function() {
                 // Starting block
                 expect(this.level._grid[4][1]._type).toBe(Level.BLOCK_TYPES.PLATFORM);
-
+console.log("Failing");
                 var coords = this.level.getPlayerCoordinates();
                 expect(coords.x).toBe(4);
                 expect(coords.y).toBe(2);
@@ -206,14 +197,11 @@ define('spec/game/level',
 
             describe('that allows the player to move a block', function() {
                 beforeEach(function() {
-                    this.level = new FakeLevel(this.scene);
-                    this.level.getGrid = function() {
-                        return [
-                            ' S   RY B  G  R',
-                            ' PPPPPPPP PPP PPP'
-                        ];
-                    };
-                    this.level.setupGrid();
+                    this.level = new Level(this.scene);
+                    this.level.setupGrid([
+                        ' S   RY B  G  R',
+                        ' PPPPPPPP PPP PPP'
+                    ]);
                 });
 
                 it("unless the block is falling", function() {
@@ -274,17 +262,14 @@ define('spec/game/level',
 
             describe("that allows for updating a block's coordinates", function() {
                 beforeEach(function() {
-                    this.level = new FakeLevel(this.scene);
-                    this.level.getGrid = function() {
-                        return [
-                            ' G     ',
-                            'SP   Y ',
-                            '   PPP ',
-                            '      B',
-                            ' PPPPPP'
-                        ];
-                    };
-                    this.level.setupGrid();
+                    this.level = new Level(this.scene);
+                    this.level.setupGrid([
+                        ' G     ',
+                        'SP   Y ',
+                        '   PPP ',
+                        '      B',
+                        ' PPPPPP'
+                    ]);
                 });
             });
         });
