@@ -155,35 +155,55 @@
   window.clearTimeout = window.clearTimeout;
   window.clearInterval = window.clearInterval;
 
-  /**
-   * ## Execution
-   *
-   * Replace the browser window's `onload`, ensure it's called, and then run all of the loaded specs. This includes initializing the `HtmlReporter` instance and then executing the loaded Jasmine environment. All of this will happen after all of the specs are loaded.
-   */
-  var currentWindowOnload = window.onload;
 
-  window.onload = function() {
-    if (currentWindowOnload) {
-      currentWindowOnload();
-    }
-    htmlReporter.initialize();
+    var BlanketReporter = function(options) {
+        var blanket = options.blanket;
 
-    define('jasmine', function() {
-      return window.jasmine;
-    });
+        this.jasmineStarted = function() {
+            blanket.setupCoverage();
+        };
 
-    require(['util/bootstrap'], function() {
-      require(
-        [
-          'spec/game',
-          'spec/game/level'
-        ],
-        function() {
-          env.execute();
+        this.jasmineDone = function() {
+            blanket.onTestsDone();
+        };
+
+        this.suiteStarted = function() {
+            blanket.onTestStart();
+        };
+
+        this.suiteDone = function(suite) {
+            blanket.onTestDone(true, suite.status === 'passed');
+        };
+    };
+
+    env.addReporter(new BlanketReporter({
+        blanket: window.blanket
+    }));
+
+    window.blanket.beforeStartTestRunner({
+        checkRequirejs: true,
+        coverage: true,
+        callback: function() {
+            htmlReporter.initialize();
+
+            define('jasmine', function() {
+              return window.jasmine;
+            });
+
+            require(['util/bootstrap'], function() {
+              require(
+                [
+                  'spec/game',
+                  'spec/game/level'
+                ],
+                function() {
+                  env.execute();
+                }
+              );
+            });
         }
-      );
     });
-  };
+
 
   /**
    * Helper function for readability above.

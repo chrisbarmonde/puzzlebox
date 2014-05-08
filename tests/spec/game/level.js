@@ -169,7 +169,7 @@ define('spec/game/level',
             it('that places the player above the start block', function() {
                 // Starting block
                 expect(this.level._grid[4][1]._type).toBe(Level.BLOCK_TYPES.PLATFORM);
-console.log("Failing");
+
                 var coords = this.level.getPlayerCoordinates();
                 expect(coords.x).toBe(4);
                 expect(coords.y).toBe(2);
